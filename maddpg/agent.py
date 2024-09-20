@@ -209,17 +209,17 @@ class MADDPGAgent:
 
         # Tournament selection and population mutation
         if self.HPO:
-            _, pop = self.tournament.select(self.pop)
+            elite, pop = self.tournament.select(self.pop)
             self.pop = self.mutations.mutation(pop)
 
         # Update step counter
         for agent in self.pop:
             agent.steps.append(agent.steps[-1])
         
-        return total_steps, pop_episode_scores
+        return total_steps, pop_episode_scores, elite
 
     def evaluate_agent(self, env, eval_steps=None, eval_loop=1):
-                # Evaluate population
+        # Evaluate population
         fitnesses = [
             agent.test(
                 env,
@@ -241,8 +241,12 @@ class MADDPGAgent:
     def load_checkpoint(self, path):
         for agent in self.pop:
             agent.load_checkpoint(path)
+            #agent.steps[-1] = 0
     
     def reached_max_steps(self, max_steps):
+        if max_steps == 0:
+            return True
+        
         return np.greater([agent.steps[-1] for agent in self.pop], max_steps).all()
     
     def agents_steps(self):

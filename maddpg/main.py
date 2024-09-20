@@ -1,8 +1,10 @@
 import os
+import imageio
 import numpy as np
 import torch
 from pettingzoo.mpe import simple_spread_v3
 from tqdm import trange
+from PIL import Image, ImageDraw
 
 from agilerl.components.multi_agent_replay_buffer import MultiAgentReplayBuffer
 from agilerl.hpo.mutation import Mutations
@@ -19,7 +21,7 @@ if __name__ == '__main__':
     # Define the network configuration
     NET_CONFIG = {
         "arch": "mlp",  # Network architecture
-        "hidden_size": [32, 32],  # Actor hidden size
+        "hidden_size": [64, 64],  # Actor hidden size
     }
 
     # Define the initial hyperparameters
@@ -40,6 +42,7 @@ if __name__ == '__main__':
         "TAU": 0.01,  # For soft update of target parameters
         "POLICY_FREQ": 2,  # Policy frequnecy
         "POP_SIZE": 4,  # Population size
+        "LOAD_AGENT": True
     }
 
     num_envs = 8
@@ -76,7 +79,13 @@ if __name__ == '__main__':
     INIT_HP["N_AGENTS"] = env.num_agents
     INIT_HP["AGENT_IDS"] = env.agents
 
+    path = "./models/spread"
+    filename = "MADDPG_trained_agent.pt"
+
     agents = MADDPGAgent(state_dim, action_dim, one_hot, NET_CONFIG, INIT_HP, num_envs, device, HPO=True)
+
+    if INIT_HP["LOAD_AGENT"]:
+        agents.load_checkpoint("./models/spread/MADDPG_trained_agent.pt")
 
     # Define training loop parameters
     max_steps = 1000000  # Max steps
@@ -86,29 +95,29 @@ if __name__ == '__main__':
     eval_steps = None  # Evaluation steps per episode - go until done
     eval_loop = 1  # Number of evaluation episodes
 
-    total_steps = 0
+    total_steps = agents.pop[0].steps[-1]
+    elite = None
 
     # TRAINING LOOP
     print("Training...")
     pbar = trange(max_steps, unit="step")
     while not agents.reached_max_steps(max_steps):
-        steps, pop_episode_scores = agents.train(num_envs, evo_steps, learning_delay, env)
+        steps, pop_episode_scores, agent = agents.train(num_envs, evo_steps, learning_delay, env)
         fitnesses = agents.evaluate_agent(env, eval_steps)
         mean_scores = [
             np.mean(episode_scores) if len(episode_scores) > 0 else 0.0
             for episode_scores in pop_episode_scores
         ]
+
+        elite = agent
         total_steps += steps
-        pbar.update(evo_steps // len(agents.pop))
+        pbar.update(steps // env.num_agents)
 
         print(f"--- Global steps {total_steps} ---")
         print(f"Steps {agents.agents_steps()}")
         print(f"Scores: {mean_scores}")
         print(f'Fitnesses: {["%.2f"%fitness for fitness in fitnesses]}')
-
     
-    path = "./models/spread"
-    filename = "spread_MADDPG_trained_agent.pt"
-    agents.save_checkpoint(path, filename)
     pbar.close()
     env.close()
+    agents.save_checkpoint(path, filename)
