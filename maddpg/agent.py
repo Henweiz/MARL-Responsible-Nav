@@ -27,13 +27,13 @@ class MADDPGAgent:
         self.one_hot = one_hot
         self.NET_CONFIG = NET_CONFIG
         self.INIT_HP = INIT_HP
-        if (self.INIT_HP["POP_SIZE"] < 1):
-            self.HPO = False
         self.num_envs = num_envs
         self.device = device
         self.pop = []
+        self.loss = []
         self.HPO = HPO
-    
+        if (self.INIT_HP["POP_SIZE"] < 1):
+            self.HPO = False
         if self.HPO:
             self.pop = create_population("MADDPG",
                             self.state_dim,
@@ -74,6 +74,7 @@ class MADDPGAgent:
                 device=self.device,
             )
         else:
+            self.pop = []
             agent = MADDPG(
                 state_dims=self.state_dim,
                 action_dims=self.action_dim,
@@ -109,6 +110,7 @@ class MADDPGAgent:
             device=self.device,
         )
 
+    # Training loop
     def train(self, num_envs, evo_steps, learning_delay, env):
         pop_episode_scores = []
         total_steps = 0
@@ -179,7 +181,8 @@ class MADDPGAgent:
                         # Sample replay buffer
                         experiences = self.memory.sample(agent.batch_size)
                         # Learn according to agent's RL algorithm
-                        agent.learn(experiences)
+                        loss = agent.learn(experiences)
+                        self.loss.append(loss)
                 # Handle num_envs > learn step; learn multiple times per step in env
                 elif (
                     len(self.memory) >= agent.batch_size and self.memory.counter > learning_delay
@@ -188,7 +191,8 @@ class MADDPGAgent:
                         # Sample replay buffer
                         experiences = self.memory.sample(agent.batch_size)
                         # Learn according to agent's RL algorithm
-                        agent.learn(experiences)
+                        loss = agent.learn(experiences)
+                        self.loss.append(loss)
 
                 state = next_state
 
@@ -203,6 +207,7 @@ class MADDPGAgent:
                         scores[idx] = 0
                         reset_noise_indices.append(idx)
                 agent.reset_action_noise(reset_noise_indices)
+                
 
             agent.steps[-1] += steps
             pop_episode_scores.append(completed_episode_scores)
@@ -231,23 +236,34 @@ class MADDPGAgent:
         ]
         return fitnesses
 
-    
+    # Save the most promising agent.
     def save_checkpoint(self, path, filename):
         os.makedirs(path, exist_ok=True)
         save_path = os.path.join(path, filename)
         elite, _ = self.tournament.select(self.pop)
         elite.save_checkpoint(save_path)
     
+    # Load agents.
     def load_checkpoint(self, path):
         for agent in self.pop:
             agent.load_checkpoint(path)
             #agent.steps[-1] = 0
     
+    # Check for reached the max steps number accross all agents.
     def reached_max_steps(self, max_steps):
         if max_steps == 0:
             return True
         
         return np.greater([agent.steps[-1] for agent in self.pop], max_steps).all()
     
+    # Returns a list of number of steps taken by the agents.
     def agents_steps(self):
         return [agent.steps[-1] for agent in self.pop]
+    
+    def total_loss(self):
+        # Get the last step (last dictionary in the list)
+        last_step = self.loss[-1]
+        
+        # Calculate the total loss
+        total_loss = sum(loss for loss, _ in last_step.values())
+        return total_loss

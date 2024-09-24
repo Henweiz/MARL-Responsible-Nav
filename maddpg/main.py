@@ -13,6 +13,7 @@ from agilerl.utils.utils import create_population
 from agilerl.wrappers.pettingzoo_wrappers import PettingZooVectorizationParallelWrapper
 
 from agent import MADDPGAgent
+from log import Logger
 
 if __name__ == '__main__':
 
@@ -36,20 +37,44 @@ if __name__ == '__main__':
         "DT": 0.01,  # Timestep for OU noise
         "LR_ACTOR": 0.001,  # Actor learning rate
         "LR_CRITIC": 0.001,  # Critic learning rate
-        "GAMMA": 0.95,  # Discount factor
+        "GAMMA": 0.98,  # Discount factor
         "MEMORY_SIZE": 100000,  # Max memory buffer size
         "LEARN_STEP": 100,  # Learning frequency
         "TAU": 0.01,  # For soft update of target parameters
         "POLICY_FREQ": 2,  # Policy frequnecy
-        "POP_SIZE": 4,  # Population size
-        "LOAD_AGENT": True
+        "POP_SIZE": 4,  # Population size, 1 if we do not want to use Hyperparameter Optimization
+        "LOAD_AGENT": False, # Load previous trained agent
+        "SAVE_AGENT": True, # Save the agent
+        "LOGGING": True
     }
+    
+    # Path & filename to save or load
+    path = "./models/spread"
+    filename = "MADDPG_spread_trained_agent.pt"
 
+    # Number of parallel environment
     num_envs = 8
+
     # Define the simple spread environment as a parallel environment
-    env = simple_spread_v3.parallel_env(continuous_actions=False)
+    env = simple_spread_v3.parallel_env(continuous_actions=False, max_cycles=30, local_ratio=0.8)
     env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
-    env.reset()
+    env.reset(seed=42)
+
+    # Logger
+    config = {
+        "Architecture:": NET_CONFIG["arch"],
+        "Hidden size": NET_CONFIG["hidden_size"],
+        "Batch size": INIT_HP["BATCH_SIZE"],
+        "Exploration noise": INIT_HP["EXPL_NOISE"],
+        "LR Actor": INIT_HP["LR_ACTOR"],
+        "LR Critic": INIT_HP["LR_CRITIC"],
+        "Discount": INIT_HP["GAMMA"],
+        "Memory size": INIT_HP["MEMORY_SIZE"],
+        "Learn step": INIT_HP["LEARN_STEP"],
+        "Tau": INIT_HP["TAU"],
+        "Population size": INIT_HP["POP_SIZE"]
+    }
+    logger = Logger(filename, config)
 
     # Configure the multi-agent algo input arguments
     try:
@@ -79,16 +104,13 @@ if __name__ == '__main__':
     INIT_HP["N_AGENTS"] = env.num_agents
     INIT_HP["AGENT_IDS"] = env.agents
 
-    path = "./models/spread"
-    filename = "MADDPG_trained_agent.pt"
-
     agents = MADDPGAgent(state_dim, action_dim, one_hot, NET_CONFIG, INIT_HP, num_envs, device, HPO=True)
 
     if INIT_HP["LOAD_AGENT"]:
         agents.load_checkpoint("./models/spread/MADDPG_trained_agent.pt")
 
     # Define training loop parameters
-    max_steps = 1000000  # Max steps
+    max_steps = 500000  # Max steps
     learning_delay = 0  # Steps before starting learning
 
     evo_steps = 10000  # Evolution frequency
@@ -100,7 +122,7 @@ if __name__ == '__main__':
 
     # TRAINING LOOP
     print("Training...")
-    pbar = trange(max_steps, unit="step")
+    pbar = trange(max_steps - agents.agents_steps()[-1], unit="step")
     while not agents.reached_max_steps(max_steps):
         steps, pop_episode_scores, agent = agents.train(num_envs, evo_steps, learning_delay, env)
         fitnesses = agents.evaluate_agent(env, eval_steps)
@@ -111,13 +133,18 @@ if __name__ == '__main__':
 
         elite = agent
         total_steps += steps
-        pbar.update(steps // env.num_agents)
+        pbar.update(steps // len(agents.pop))
+        if INIT_HP["LOGGING"]:
+            logger.log(np.mean(mean_scores), np.mean(fitnesses), agents.total_loss())
 
         print(f"--- Global steps {total_steps} ---")
         print(f"Steps {agents.agents_steps()}")
         print(f"Scores: {mean_scores}")
+        print(f"Loss: {agents.total_loss()}")
         print(f'Fitnesses: {["%.2f"%fitness for fitness in fitnesses]}')
     
     pbar.close()
     env.close()
-    agents.save_checkpoint(path, filename)
+    if INIT_HP["SAVE_AGENT"]:
+        agents.save_checkpoint(path, filename)
+        print("Succesfully saved the agent")

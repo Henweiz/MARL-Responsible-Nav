@@ -38,8 +38,9 @@ if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-    # Define the simple spread environment as a parallel environment
+    # Define the simple spread environment
     env = simple_spread_v3.parallel_env(continuous_actions=False, max_cycles=30, render_mode="human")
+
     channels_last = False  # Needed for environments that use images as observations, like atari
     if channels_last:
         # Environment processing for image based observations
@@ -91,11 +92,11 @@ if __name__ == '__main__':
         device=device,
     )
 
+    # Load the previous trained agent.
     path = "./models/spread/MADDPG_trained_agent.pt"
-
     agent.load_checkpoint(path)
 
-    eval_loop = 2  # Number of evaluation episodes
+    eval_loop = 1  # Number of evaluation episodes
     max_steps = 100000
 
     rewards = []  # List to collect total episodic reward
@@ -167,7 +168,7 @@ if __name__ == '__main__':
     
     env.close()
 
-        # Save the gif to specified path
+    # Save the gif to specified path
     #gif_path = "./videos/"
     #os.makedirs(gif_path, exist_ok=True)
     #imageio.mimwrite(
