@@ -34,7 +34,7 @@ class MADDPGAgent:
         self.pop = []
         self.loss = []
         self.HPO = HPO
-        if (self.INIT_HP["POP_SIZE"] < 1):
+        if (self.INIT_HP["POP_SIZE"] <= 1):
             self.HPO = False
         if self.HPO:
             self.pop = create_population("MADDPG",
@@ -141,10 +141,7 @@ class MADDPGAgent:
 
 
                 actions = env.action_space.sample() 
-                print(discrete_action)
-                
-                actions[:num_agents] = action   
-                print(actions)
+                actions[:num_agents] = [int(x.item(0)) for x in action.values()] 
                 # Act in environment
                 if gym:
                     next_state, reward, termination, truncation, info = convert_to_terminated_truncated_step_api(env.step(actions), is_vector_env=True)
@@ -152,7 +149,7 @@ class MADDPGAgent:
                     next_state, reward, termination, truncation, info = env.step(actions)
 
                 term_array = termination[:num_agents]
-                for idx in enumerate(term_array):
+                for idx,_ in enumerate(term_array):
                     if term_array[idx]:
                         reward[idx] = 0
 
@@ -176,7 +173,7 @@ class MADDPGAgent:
                     self.convert_to_dict(r_array),
                     self.convert_to_dict(next_state),
                     self.convert_to_dict(termination),
-                    is_vectorised=True,
+                    is_vectorised=False,
                 )
 
                 # Learn according to learning frequency
@@ -212,10 +209,10 @@ class MADDPGAgent:
                 trunc_array = truncation[:num_agents]
                 for idx, (d, t) in enumerate(zip(term_array, trunc_array)):
                     if all(termination[:num_agents]):
-                        completed_episode_scores.append(scores[idx])
-                        agent.scores.append(scores[idx])
-                        scores[idx] = 0
-                        reset_noise_indices.append(idx)
+                        completed_episode_scores.append(scores[0])
+                        agent.scores.append(scores[0])
+                        scores[0] = 0
+                        reset_noise_indices.append(0)
                         state = env.reset()
       
                 agent.reset_action_noise(reset_noise_indices)

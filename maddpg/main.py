@@ -81,7 +81,7 @@ if __name__ == '__main__':
     # Configure the multi-agent algo input arguments
     
     state_dim = [(81,1) for x in range(env.n_agents)]
-    one_hot = True
+    one_hot = False
     try:
         action_dim = [1 for x in range(env.n_agents)]
         INIT_HP["DISCRETE_ACTIONS"] = True
@@ -102,7 +102,6 @@ if __name__ == '__main__':
     # Append number of agents and agent IDs to the initial hyperparameter dictionary
     INIT_HP["N_AGENTS"] = env.n_agents
     INIT_HP["AGENT_IDS"] = [i for i in range(env.n_agents)]
-    print(action_dim)
 
     agents = MADDPGAgent(state_dim, action_dim, one_hot, NET_CONFIG, INIT_HP, num_envs, device, HPO=True)
 
