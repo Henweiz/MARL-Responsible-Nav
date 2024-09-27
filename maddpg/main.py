@@ -1,10 +1,10 @@
 import os
-import imageio
 import numpy as np
 import torch
 from pettingzoo.mpe import simple_spread_v3
 from tqdm import trange
-from PIL import Image, ImageDraw
+import gym
+import ma_gym
 
 from agilerl.components.multi_agent_replay_buffer import MultiAgentReplayBuffer
 from agilerl.hpo.mutation import Mutations
@@ -42,7 +42,7 @@ if __name__ == '__main__':
         "LEARN_STEP": 100,  # Learning frequency
         "TAU": 0.01,  # For soft update of target parameters
         "POLICY_FREQ": 2,  # Policy frequnecy
-        "POP_SIZE": 4,  # Population size, 1 if we do not want to use Hyperparameter Optimization
+        "POP_SIZE": 1,  # Population size, 1 if we do not want to use Hyperparameter Optimization
         "LOAD_AGENT": False, # Load previous trained agent
         "SAVE_AGENT": False, # Save the agent
         "LOGGING": False
@@ -53,12 +53,13 @@ if __name__ == '__main__':
     filename = "MADDPG_spread_trained_agent.pt"
 
     # Number of parallel environment
-    num_envs = 8
+    num_envs = 1
 
     # Define the simple spread environment as a parallel environment
-    env = simple_spread_v3.parallel_env(continuous_actions=False, max_cycles=30, local_ratio=1)
-    env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
-    env.reset(seed=42)
+    #env = simple_spread_v3.parallel_env(continuous_actions=False, max_cycles=30, local_ratio=1)
+    #env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
+    env = gym.make('TrafficJunction4-v0')
+    env.reset()
 
     # Logger
     if INIT_HP["LOGGING"]:
@@ -78,14 +79,11 @@ if __name__ == '__main__':
         logger = Logger(filename, config)
 
     # Configure the multi-agent algo input arguments
+    
+    state_dim = [(81,1) for x in range(env.n_agents)]
+    one_hot = True
     try:
-        state_dim = [env.observation_space(agent).n for agent in env.agents]
-        one_hot = True
-    except Exception:
-        state_dim = [env.observation_space(agent).shape for agent in env.agents]
-        one_hot = False
-    try:
-        action_dim = [env.action_space(agent).n for agent in env.agents]
+        action_dim = [1 for x in range(env.n_agents)]
         INIT_HP["DISCRETE_ACTIONS"] = True
         INIT_HP["MAX_ACTION"] = None
         INIT_HP["MIN_ACTION"] = None
@@ -102,8 +100,9 @@ if __name__ == '__main__':
         ]
 
     # Append number of agents and agent IDs to the initial hyperparameter dictionary
-    INIT_HP["N_AGENTS"] = env.num_agents
-    INIT_HP["AGENT_IDS"] = env.agents
+    INIT_HP["N_AGENTS"] = env.n_agents
+    INIT_HP["AGENT_IDS"] = [i for i in range(env.n_agents)]
+    print(action_dim)
 
     agents = MADDPGAgent(state_dim, action_dim, one_hot, NET_CONFIG, INIT_HP, num_envs, device, HPO=True)
 
@@ -125,7 +124,7 @@ if __name__ == '__main__':
     print("Training...")
     pbar = trange(max_steps - agents.agents_steps()[-1], unit="step")
     while not agents.reached_max_steps(max_steps):
-        steps, pop_episode_scores, agent = agents.train(num_envs, evo_steps, learning_delay, env)
+        steps, pop_episode_scores, agent = agents.train_with_dummies(num_envs, evo_steps, learning_delay, env, num_agents = 4,gym = True)
         fitnesses = agents.evaluate_agent(env, eval_steps)
         mean_scores = [
             np.mean(episode_scores) if len(episode_scores) > 0 else 0.0

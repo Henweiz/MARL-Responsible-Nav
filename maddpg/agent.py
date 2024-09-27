@@ -116,7 +116,7 @@ class MADDPGAgent:
         pop_episode_scores = []
         total_steps = 0
         for agent in self.pop:  # Loop through population
-            state, info = env.reset()
+            state = env.reset()
             scores = np.zeros(num_envs)
             completed_episode_scores = []
             steps = 0
@@ -127,20 +127,13 @@ class MADDPGAgent:
                 }
 
             for idx_step in range(evo_steps // num_envs):
-                agent_mask = info["agent_mask"] if "agent_mask" in info.keys() else None
-                env_defined_actions = (
-                    info["env_defined_actions"]
-                    if "env_defined_actions" in info.keys()
-                    else None
-                )
-
                 # Get next action from agent
+                
+                state_dict = self.convert_to_dict(state)
                 cont_actions, discrete_action = agent.get_action(
-                    states=state[:num_agents],
-                    training=True,
-                    agent_mask=agent_mask[:num_agents],
-                    env_defined_actions=env_defined_actions[:num_agents],
-                )
+                    states=state_dict,
+                    training=True)
+                    
                 if agent.discrete_actions:
                     action = discrete_action
                 else:
@@ -148,20 +141,22 @@ class MADDPGAgent:
 
 
                 actions = env.action_space.sample() 
+                print(discrete_action)
+                
                 actions[:num_agents] = action   
-
+                print(actions)
                 # Act in environment
                 if gym:
                     next_state, reward, termination, truncation, info = convert_to_terminated_truncated_step_api(env.step(actions), is_vector_env=True)
                 else:
                     next_state, reward, termination, truncation, info = env.step(actions)
 
-                term_array = np.array(list(termination[:num_agents].values())).transpose()
+                term_array = termination[:num_agents]
                 for idx in enumerate(term_array):
                     if term_array[idx]:
                         reward[idx] = 0
 
-                r_array = np.array(list(reward[:num_agents].values())).transpose()        
+                r_array = reward[:num_agents]        
                 
                 scores += np.sum(r_array, axis=-1)
                 total_steps += num_envs
@@ -176,11 +171,11 @@ class MADDPGAgent:
 
                 # Save experiences to replay buffer
                 self.memory.save_to_memory(
-                    state[:num_agents],
+                    state_dict,
                     cont_actions,
-                    reward[:num_agents],
-                    next_state[:num_agents],
-                    termination[:num_agents],
+                    self.convert_to_dict(r_array),
+                    self.convert_to_dict(next_state),
+                    self.convert_to_dict(termination),
                     is_vectorised=True,
                 )
 
@@ -214,14 +209,14 @@ class MADDPGAgent:
                 # Calculate scores and reset noise for finished episodes
                 reset_noise_indices = []
                 
-                trunc_array = np.array(list(truncation[:num_agents].values())).transpose()
+                trunc_array = truncation[:num_agents]
                 for idx, (d, t) in enumerate(zip(term_array, trunc_array)):
                     if all(termination[:num_agents]):
                         completed_episode_scores.append(scores[idx])
                         agent.scores.append(scores[idx])
                         scores[idx] = 0
                         reset_noise_indices.append(idx)
-                        state, info = env.reset()
+                        state = env.reset()
       
                 agent.reset_action_noise(reset_noise_indices)
                 
@@ -245,7 +240,7 @@ class MADDPGAgent:
         pop_episode_scores = []
         total_steps = 0
         for agent in self.pop:  # Loop through population
-            state, info = env.reset()
+            state = env.reset()
             scores = np.zeros(num_envs)
             completed_episode_scores = []
             steps = 0
@@ -256,19 +251,12 @@ class MADDPGAgent:
                 }
 
             for idx_step in range(evo_steps // num_envs):
-                agent_mask = info["agent_mask"] if "agent_mask" in info.keys() else None
-                env_defined_actions = (
-                    info["env_defined_actions"]
-                    if "env_defined_actions" in info.keys()
-                    else None
-                )
+               
 
                 # Get next action from agent
                 cont_actions, discrete_action = agent.get_action(
                     states=state,
-                    training=True,
-                    agent_mask=agent_mask,
-                    env_defined_actions=env_defined_actions,
+                    training=True
                 )
                 if agent.discrete_actions:
                     action = discrete_action
@@ -397,3 +385,9 @@ class MADDPGAgent:
         # Calculate the total loss
         total_loss = sum(loss for loss, _ in last_step.values())
         return total_loss
+    
+    def convert_to_dict(self, list):
+        it = iter(list[:self.INIT_HP['N_AGENTS']])
+        ids = iter(self.INIT_HP["AGENT_IDS"])
+        res_dct = dict(zip(ids, it))
+        return res_dct
