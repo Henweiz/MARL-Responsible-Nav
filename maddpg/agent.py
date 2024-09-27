@@ -11,6 +11,8 @@ from agilerl.utils.utils import create_population
 from agilerl.wrappers.pettingzoo_wrappers import PettingZooVectorizationParallelWrapper
 from agilerl.algorithms.maddpg import MADDPG
 
+from gymnasium.utils.step_api_compatibility import convert_to_terminated_truncated_step_api
+
 class MADDPGAgent:
     def __init__(self,
         state_dim,
@@ -110,6 +112,134 @@ class MADDPGAgent:
             device=self.device,
         )
 
+    def train_with_dummies(self, num_envs, evo_steps, learning_delay, env, num_agents, gym=False):
+        pop_episode_scores = []
+        total_steps = 0
+        for agent in self.pop:  # Loop through population
+            state, info = env.reset()
+            scores = np.zeros(num_envs)
+            completed_episode_scores = []
+            steps = 0
+            if self.INIT_HP["CHANNELS_LAST"]:
+                state = {
+                    agent_id: np.moveaxis(s, [-1], [-3])
+                    for agent_id, s in state.items()
+                }
+
+            for idx_step in range(evo_steps // num_envs):
+                agent_mask = info["agent_mask"] if "agent_mask" in info.keys() else None
+                env_defined_actions = (
+                    info["env_defined_actions"]
+                    if "env_defined_actions" in info.keys()
+                    else None
+                )
+
+                # Get next action from agent
+                cont_actions, discrete_action = agent.get_action(
+                    states=state[:num_agents],
+                    training=True,
+                    agent_mask=agent_mask[:num_agents],
+                    env_defined_actions=env_defined_actions[:num_agents],
+                )
+                if agent.discrete_actions:
+                    action = discrete_action
+                else:
+                    action = cont_actions
+
+
+                actions = env.action_space.sample() 
+                actions[:num_agents] = action   
+
+                # Act in environment
+                if gym:
+                    next_state, reward, termination, truncation, info = convert_to_terminated_truncated_step_api(env.step(actions), is_vector_env=True)
+                else:
+                    next_state, reward, termination, truncation, info = env.step(actions)
+
+                term_array = np.array(list(termination[:num_agents].values())).transpose()
+                for idx in enumerate(term_array):
+                    if term_array[idx]:
+                        reward[idx] = 0
+
+                r_array = np.array(list(reward[:num_agents].values())).transpose()        
+                
+                scores += np.sum(r_array, axis=-1)
+                total_steps += num_envs
+                steps += num_envs
+
+                # Image processing if necessary for the environment
+                if self.INIT_HP["CHANNELS_LAST"]:
+                    next_state = {
+                        agent_id: np.moveaxis(ns, [-1], [-3])
+                        for agent_id, ns in next_state.items()
+                    }
+
+                # Save experiences to replay buffer
+                self.memory.save_to_memory(
+                    state[:num_agents],
+                    cont_actions,
+                    reward[:num_agents],
+                    next_state[:num_agents],
+                    termination[:num_agents],
+                    is_vectorised=True,
+                )
+
+                # Learn according to learning frequency
+                # Handle learn steps > num_envs
+                if agent.learn_step > num_envs:
+                    learn_step = agent.learn_step // num_envs
+                    if (
+                        idx_step % learn_step == 0
+                        and len(self.memory) >= agent.batch_size
+                        and self.memory.counter > learning_delay
+                    ):
+                        # Sample replay buffer
+                        experiences = self.memory.sample(agent.batch_size)
+                        # Learn according to agent's RL algorithm
+                        loss = agent.learn(experiences)
+                        self.loss.append(loss)
+                # Handle num_envs > learn step; learn multiple times per step in env
+                elif (
+                    len(self.memory) >= agent.batch_size and self.memory.counter > learning_delay
+                ):
+                    for _ in range(num_envs // agent.learn_step):
+                        # Sample replay buffer
+                        experiences = self.memory.sample(agent.batch_size)
+                        # Learn according to agent's RL algorithm
+                        loss = agent.learn(experiences)
+                        self.loss.append(loss)
+
+                state = next_state
+
+                # Calculate scores and reset noise for finished episodes
+                reset_noise_indices = []
+                
+                trunc_array = np.array(list(truncation[:num_agents].values())).transpose()
+                for idx, (d, t) in enumerate(zip(term_array, trunc_array)):
+                    if all(termination[:num_agents]):
+                        completed_episode_scores.append(scores[idx])
+                        agent.scores.append(scores[idx])
+                        scores[idx] = 0
+                        reset_noise_indices.append(idx)
+                        state, info = env.reset()
+      
+                agent.reset_action_noise(reset_noise_indices)
+                
+
+            agent.steps[-1] += steps
+            pop_episode_scores.append(completed_episode_scores)
+
+        # Tournament selection and population mutation
+        if self.HPO:
+            elite, pop = self.tournament.select(self.pop)
+            self.pop = self.mutations.mutation(pop)
+
+        # Update step counter
+        for agent in self.pop:
+            agent.steps.append(agent.steps[-1])
+        
+        return total_steps, pop_episode_scores, elite
+    
     # Training loop
     def train(self, num_envs, evo_steps, learning_delay, env):
         pop_episode_scores = []

@@ -44,8 +44,8 @@ if __name__ == '__main__':
         "POLICY_FREQ": 2,  # Policy frequnecy
         "POP_SIZE": 4,  # Population size, 1 if we do not want to use Hyperparameter Optimization
         "LOAD_AGENT": False, # Load previous trained agent
-        "SAVE_AGENT": True, # Save the agent
-        "LOGGING": True
+        "SAVE_AGENT": False, # Save the agent
+        "LOGGING": False
     }
     
     # Path & filename to save or load
@@ -56,25 +56,26 @@ if __name__ == '__main__':
     num_envs = 8
 
     # Define the simple spread environment as a parallel environment
-    env = simple_spread_v3.parallel_env(continuous_actions=False, max_cycles=30, local_ratio=0.8)
+    env = simple_spread_v3.parallel_env(continuous_actions=False, max_cycles=30, local_ratio=1)
     env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
     env.reset(seed=42)
 
     # Logger
-    config = {
-        "Architecture:": NET_CONFIG["arch"],
-        "Hidden size": NET_CONFIG["hidden_size"],
-        "Batch size": INIT_HP["BATCH_SIZE"],
-        "Exploration noise": INIT_HP["EXPL_NOISE"],
-        "LR Actor": INIT_HP["LR_ACTOR"],
-        "LR Critic": INIT_HP["LR_CRITIC"],
-        "Discount": INIT_HP["GAMMA"],
-        "Memory size": INIT_HP["MEMORY_SIZE"],
-        "Learn step": INIT_HP["LEARN_STEP"],
-        "Tau": INIT_HP["TAU"],
-        "Population size": INIT_HP["POP_SIZE"]
-    }
-    logger = Logger(filename, config)
+    if INIT_HP["LOGGING"]:
+        config = {
+            "Architecture:": NET_CONFIG["arch"],
+            "Hidden size": NET_CONFIG["hidden_size"],
+            "Batch size": INIT_HP["BATCH_SIZE"],
+            "Exploration noise": INIT_HP["EXPL_NOISE"],
+            "LR Actor": INIT_HP["LR_ACTOR"],
+            "LR Critic": INIT_HP["LR_CRITIC"],
+            "Discount": INIT_HP["GAMMA"],
+            "Memory size": INIT_HP["MEMORY_SIZE"],
+            "Learn step": INIT_HP["LEARN_STEP"],
+            "Tau": INIT_HP["TAU"],
+            "Population size": INIT_HP["POP_SIZE"]
+        }
+        logger = Logger(filename, config)
 
     # Configure the multi-agent algo input arguments
     try:
