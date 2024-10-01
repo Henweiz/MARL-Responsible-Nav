@@ -11,7 +11,8 @@ from agilerl.utils.utils import create_population
 from agilerl.wrappers.pettingzoo_wrappers import PettingZooVectorizationParallelWrapper
 from agilerl.algorithms.maddpg import MADDPG
 
-from gymnasium.utils.step_api_compatibility import convert_to_terminated_truncated_step_api
+import gymnasium as gym
+import highway_env
 
 class MADDPGAgent:
     def __init__(self,
@@ -112,11 +113,13 @@ class MADDPGAgent:
             device=self.device,
         )
 
-    def train_with_dummies(self, num_envs, evo_steps, learning_delay, env, num_agents, gym=False):
+    
+    # Training loop
+    def train(self, num_envs, evo_steps, learning_delay, env):
         pop_episode_scores = []
         total_steps = 0
         for agent in self.pop:  # Loop through population
-            state = env.reset()
+            state, info = env.reset()
             scores = np.zeros(num_envs)
             completed_episode_scores = []
             steps = 0
@@ -127,35 +130,39 @@ class MADDPGAgent:
                 }
 
             for idx_step in range(evo_steps // num_envs):
+                agent_mask = info["agent_mask"] if "agent_mask" in info.keys() else None
+                env_defined_actions = (
+                    info["env_defined_actions"]
+                    if "env_defined_actions" in info.keys()
+                    else None
+                )
+                state = [x.flatten() for x in state]
+                state_dict = self.make_dict(state)
                 # Get next action from agent
-                
-                state_dict = self.convert_to_dict(state)
                 cont_actions, discrete_action = agent.get_action(
                     states=state_dict,
-                    training=True)
-                    
+                    training=True,
+                    agent_mask=agent_mask,
+                    env_defined_actions=None,
+                )
                 if agent.discrete_actions:
                     action = discrete_action
                 else:
                     action = cont_actions
 
-
-                actions = env.action_space.sample() 
-                actions[:num_agents] = [int(x.item(0)) for x in action.values()] 
-                # Act in environment
-                if gym:
-                    next_state, reward, termination, truncation, info = convert_to_terminated_truncated_step_api(env.step(actions), is_vector_env=True)
-                else:
-                    next_state, reward, termination, truncation, info = env.step(actions)
-
-                term_array = termination[:num_agents]
-                for idx,_ in enumerate(term_array):
-                    if term_array[idx]:
-                        reward[idx] = 0
-
-                r_array = reward[:num_agents]        
                 
-                scores += np.sum(r_array, axis=-1)
+                # Act in environment
+                action_tuple  = tuple(action.values())
+                action_tuple = tuple(x.item() for x in action_tuple)
+                next_state, reward, termination, truncation, info = env.step(action_tuple)
+                
+                next_state_dict = self.make_dict([x.flatten() for x in next_state])
+                reward_dict = self.make_dict(reward)
+                termination_dict = self.make_dict(termination)
+            
+                
+
+                scores += np.sum(np.array(list(reward_dict.values())).transpose(), axis=-1)
                 total_steps += num_envs
                 steps += num_envs
 
@@ -165,14 +172,15 @@ class MADDPGAgent:
                         agent_id: np.moveaxis(ns, [-1], [-3])
                         for agent_id, ns in next_state.items()
                     }
-
+                
+                cont_actions = {k: np.squeeze(v) for (k,v) in cont_actions.items()}
                 # Save experiences to replay buffer
                 self.memory.save_to_memory(
                     state_dict,
                     cont_actions,
-                    self.convert_to_dict(r_array),
-                    self.convert_to_dict(next_state),
-                    self.convert_to_dict(termination),
+                    reward_dict,
+                    next_state_dict,
+                    termination_dict,
                     is_vectorised=False,
                 )
 
@@ -205,122 +213,24 @@ class MADDPGAgent:
 
                 # Calculate scores and reset noise for finished episodes
                 reset_noise_indices = []
-                
-                trunc_array = truncation[:num_agents]
-                for idx, (d, t) in enumerate(zip(term_array, trunc_array)):
-                    if all(termination[:num_agents]):
-                        completed_episode_scores.append(scores[0])
-                        agent.scores.append(scores[0])
-                        scores[0] = 0
-                        reset_noise_indices.append(0)
-                        state = env.reset()
-      
-                agent.reset_action_noise(reset_noise_indices)
-                
-
-            agent.steps[-1] += steps
-            pop_episode_scores.append(completed_episode_scores)
-
-        # Tournament selection and population mutation
-        if self.HPO:
-            elite, pop = self.tournament.select(self.pop)
-            self.pop = self.mutations.mutation(pop)
-
-        # Update step counter
-        for agent in self.pop:
-            agent.steps.append(agent.steps[-1])
-        
-        return total_steps, pop_episode_scores, elite
-    
-    # Training loop
-    def train(self, num_envs, evo_steps, learning_delay, env):
-        pop_episode_scores = []
-        total_steps = 0
-        for agent in self.pop:  # Loop through population
-            state = env.reset()
-            scores = np.zeros(num_envs)
-            completed_episode_scores = []
-            steps = 0
-            if self.INIT_HP["CHANNELS_LAST"]:
-                state = {
-                    agent_id: np.moveaxis(s, [-1], [-3])
-                    for agent_id, s in state.items()
-                }
-
-            for idx_step in range(evo_steps // num_envs):
-               
-
-                # Get next action from agent
-                cont_actions, discrete_action = agent.get_action(
-                    states=state,
-                    training=True
-                )
-                if agent.discrete_actions:
-                    action = discrete_action
-                else:
-                    action = cont_actions
-
-                # Act in environment
-                next_state, reward, termination, truncation, info = env.step(action)
-
-                scores += np.sum(np.array(list(reward.values())).transpose(), axis=-1)
-                total_steps += num_envs
-                steps += num_envs
-
-                # Image processing if necessary for the environment
-                if self.INIT_HP["CHANNELS_LAST"]:
-                    next_state = {
-                        agent_id: np.moveaxis(ns, [-1], [-3])
-                        for agent_id, ns in next_state.items()
-                    }
-
-                # Save experiences to replay buffer
-                self.memory.save_to_memory(
-                    state,
-                    cont_actions,
-                    reward,
-                    next_state,
-                    termination,
-                    is_vectorised=True,
-                )
-
-                # Learn according to learning frequency
-                # Handle learn steps > num_envs
-                if agent.learn_step > num_envs:
-                    learn_step = agent.learn_step // num_envs
-                    if (
-                        idx_step % learn_step == 0
-                        and len(self.memory) >= agent.batch_size
-                        and self.memory.counter > learning_delay
-                    ):
-                        # Sample replay buffer
-                        experiences = self.memory.sample(agent.batch_size)
-                        # Learn according to agent's RL algorithm
-                        loss = agent.learn(experiences)
-                        self.loss.append(loss)
-                # Handle num_envs > learn step; learn multiple times per step in env
-                elif (
-                    len(self.memory) >= agent.batch_size and self.memory.counter > learning_delay
-                ):
-                    for _ in range(num_envs // agent.learn_step):
-                        # Sample replay buffer
-                        experiences = self.memory.sample(agent.batch_size)
-                        # Learn according to agent's RL algorithm
-                        loss = agent.learn(experiences)
-                        self.loss.append(loss)
-
-                state = next_state
-
-                # Calculate scores and reset noise for finished episodes
-                reset_noise_indices = []
-                term_array = np.array(list(termination.values())).transpose()
-                trunc_array = np.array(list(truncation.values())).transpose()
-                for idx, (d, t) in enumerate(zip(term_array, trunc_array)):
-                    if np.any(d) or np.any(t):
+                term_array = np.array(list(termination_dict.values())).transpose()
+                for i in range(num_envs):
+                    if truncation:
+                        
+                        reset_noise_indices.append(i)
+                            
+                        completed_episode_scores.append(scores[i])
+                        agent.scores.append(scores[i])
+                        scores[i] = 0
+                '''
+                for idx, d in enumerate((term_array)):
+                    if np.any(d) or truncation:
                         completed_episode_scores.append(scores[idx])
                         agent.scores.append(scores[idx])
                         scores[idx] = 0
                         reset_noise_indices.append(idx)
+                        '''
+                
                 agent.reset_action_noise(reset_noise_indices)
                 
 
@@ -383,8 +293,8 @@ class MADDPGAgent:
         total_loss = sum(loss for loss, _ in last_step.values())
         return total_loss
     
-    def convert_to_dict(self, list):
-        it = iter(list[:self.INIT_HP['N_AGENTS']])
-        ids = iter(self.INIT_HP["AGENT_IDS"])
-        res_dct = dict(zip(ids, it))
-        return res_dct
+    def make_dict(self,tuple):
+        dict = {}
+        for i in range(self.INIT_HP["N_AGENTS"]):
+            dict[f'agent_{i}'] = tuple[i]
+        return dict
