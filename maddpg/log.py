@@ -22,3 +22,6 @@ class Logger:
     def log(self, reward, fitness, loss):
         wandb.log({"reward": reward, "fitness": fitness, "loss": loss})
 
+    def log(self, reward, loss):
+        wandb.log({"reward": reward, "loss": loss})    
+

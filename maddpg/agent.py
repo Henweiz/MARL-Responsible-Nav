@@ -130,6 +130,7 @@ class MADDPGAgent:
                 }
 
             for idx_step in range(evo_steps // num_envs):
+                #print("Step: ", idx_step)
                 agent_mask = info["agent_mask"] if "agent_mask" in info.keys() else None
                 env_defined_actions = (
                     info["env_defined_actions"]
@@ -158,6 +159,7 @@ class MADDPGAgent:
                 
                 next_state_dict = self.make_dict([x.flatten() for x in next_state])
                 reward_dict = self.make_dict(reward)
+                #print(reward_dict)
                 termination_dict = self.make_dict(termination)
             
                 
@@ -215,13 +217,14 @@ class MADDPGAgent:
                 reset_noise_indices = []
                 term_array = np.array(list(termination_dict.values())).transpose()
                 for i in range(num_envs):
-                    if truncation:
+                    if all(term_array) or truncation:
                         
                         reset_noise_indices.append(i)
                             
                         completed_episode_scores.append(scores[i])
                         agent.scores.append(scores[i])
                         scores[i] = 0
+                        state, info = env.reset()
                 '''
                 for idx, d in enumerate((term_array)):
                     if np.any(d) or truncation:
@@ -239,14 +242,14 @@ class MADDPGAgent:
 
         # Tournament selection and population mutation
         if self.HPO:
-            elite, pop = self.tournament.select(self.pop)
+            _, pop = self.tournament.select(self.pop)
             self.pop = self.mutations.mutation(pop)
 
         # Update step counter
         for agent in self.pop:
             agent.steps.append(agent.steps[-1])
         
-        return total_steps, pop_episode_scores, elite
+        return total_steps, pop_episode_scores
 
     def evaluate_agent(self, env, eval_steps=None, eval_loop=1):
         # Evaluate population
@@ -265,8 +268,11 @@ class MADDPGAgent:
     def save_checkpoint(self, path, filename):
         os.makedirs(path, exist_ok=True)
         save_path = os.path.join(path, filename)
-        elite, _ = self.tournament.select(self.pop)
-        elite.save_checkpoint(save_path)
+        if self.HPO:
+            elite, _ = self.tournament.select(self.pop)
+            elite.save_checkpoint(save_path)
+        else:
+            self.pop[0].save_checkpoint(save_path)
     
     # Load agents.
     def load_checkpoint(self, path):

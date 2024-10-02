@@ -41,12 +41,12 @@ if __name__ == '__main__':
         "LR_CRITIC": 0.001,  # Critic learning rate
         "GAMMA": 0.98,  # Discount factor
         "MEMORY_SIZE": 100000,  # Max memory buffer size
-        "LEARN_STEP": 1,  # Learning frequency
+        "LEARN_STEP": 20,  # Learning frequency
         "TAU": 0.01,  # For soft update of target parameters
         "POLICY_FREQ": 2,  # Policy frequnecy
         "POP_SIZE": 1,  # Population size, 1 if we do not want to use Hyperparameter Optimization
         "LOAD_AGENT": False, # Load previous trained agent
-        "SAVE_AGENT": False, # Save the agent
+        "SAVE_AGENT": True, # Save the agent
         "LOGGING": False
     }
     
@@ -63,7 +63,11 @@ if __name__ == '__main__':
         "action_config": {
         "type": "DiscreteAction",
         }
-    }})
+    },
+    "render_agent": False, 
+    "duration": 13
+    })
+    print(env.unwrapped.config)
     #env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
     obs, info = env.reset(seed=42)
     env.num_agents = env.unwrapped.config['controlled_vehicles']
@@ -116,13 +120,13 @@ if __name__ == '__main__':
     agents = MADDPGAgent(state_dim, action_dim, one_hot, NET_CONFIG, INIT_HP, num_envs, device, HPO=True)
 
     if INIT_HP["LOAD_AGENT"]:
-        agents.load_checkpoint("./models/spread/MADDPG_trained_agent.pt")
+        agents.load_checkpoint("./models/intersection/MADDPG_intersection_trained_agent.pt")
 
     # Define training loop parameters
-    max_steps = 500000  # Max steps
+    max_steps = 10000  # Max steps
     learning_delay = 0  # Steps before starting learning
 
-    evo_steps = 10000  # Evolution frequency
+    evo_steps = 100  # Evolution frequency
     eval_steps = None  # Evaluation steps per episode - go until done
     eval_loop = 1  # Number of evaluation episodes
 
@@ -133,24 +137,23 @@ if __name__ == '__main__':
     print("Training...")
     pbar = trange(max_steps - agents.agents_steps()[-1], unit="step")
     while not agents.reached_max_steps(max_steps):
-        steps, pop_episode_scores, agent = agents.train(num_envs, evo_steps, learning_delay, env)
-        fitnesses = agents.evaluate_agent(env, eval_steps)
+        steps, pop_episode_scores = agents.train(num_envs, evo_steps, learning_delay, env)
+        #fitnesses = agents.evaluate_agent(env, eval_steps)
         mean_scores = [
             np.mean(episode_scores) if len(episode_scores) > 0 else 0.0
             for episode_scores in pop_episode_scores
         ]
 
-        elite = agent
         total_steps += steps
         pbar.update(steps // len(agents.pop))
         if INIT_HP["LOGGING"]:
-            logger.log(np.mean(mean_scores), np.mean(fitnesses), agents.total_loss())
+            logger.log(np.mean(mean_scores), agents.total_loss())
 
         print(f"--- Global steps {total_steps} ---")
         print(f"Steps {agents.agents_steps()}")
         print(f"Scores: {mean_scores}")
         print(f"Loss: {agents.total_loss()}")
-        print(f'Fitnesses: {["%.2f"%fitness for fitness in fitnesses]}')
+        #print(f'Fitnesses: {["%.2f"%fitness for fitness in fitnesses]}')
     
     pbar.close()
     env.close()
