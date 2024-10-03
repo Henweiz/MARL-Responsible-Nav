@@ -37,8 +37,7 @@ if __name__ == "__main__":
     num_envs = 1
 
     config = {
-    "id": "intersection-multi-agent-v0",
-    "import_module": "highway_env",
+    "id": "intersection-multi-agent-v1",
     "observation": {
         "type": "MultiAgentObservation",
         "observation_config": {
@@ -51,16 +50,17 @@ if __name__ == "__main__":
                 "vx": [-20, 20],
                 "vy": [-20, 20]
             },
-            "absolute": True,
-            "order": "shuffled"
+            "absolute": True
         }
     },
-    "initial_vehicle_count": 3,
+    "action": {"type": "MultiAgentAction",
+               "action_config": {"type": "DiscreteMetaAction"}},
+    "initial_vehicle_count": 10,
     "controlled_vehicles": 2
     }
 
     # Define the simple spread environment as a parallel environment
-    env = gym.make("intersection-multi-agent-v0", render_mode="human", config = config)
+    env = gym.make("intersection-multi-agent-v1", render_mode="human", config = config)
     print(env.unwrapped.config)
     #env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
     obs, info = env.reset(seed=42)
@@ -68,9 +68,12 @@ if __name__ == "__main__":
     env.agents = [f'agent_{i}' for i in range(env.num_agents)]
 
     # Configure the multi-agent algo input arguments
-    state_dim = [(25,1) for agent in env.agents]
+    # Configure the multi-agent algo input arguments
+    state_dim = [(obs[agent].flatten().shape[0], 1) for agent, _ in enumerate(env.agents)]
     one_hot = False
-    action_dim = [9 for agent in env.agents]
+
+    action_dim = [env.action_space[agent].n for agent, _ in enumerate(env.agents)]
+
 
     # Append number of agents and agent IDs to the initial hyperparameter dictionary
     n_agents = env.num_agents
@@ -90,7 +93,7 @@ if __name__ == "__main__":
     )
 
     # Load the previous trained agent.
-    path = "./models/intersection/MADDPG_intersection_trained_agent.pt"
+    path = "./models/intersection/MADDPG_trained_agent.pt"
     agent.load_checkpoint(path)
 
 
@@ -98,13 +101,13 @@ if __name__ == "__main__":
     #    env, video_folder="intersection_maddpg/videos", episode_trigger=lambda e: True
     #)
     #env.unwrapped.set_record_video_wrapper(env)
-    env.unwrapped.config["simulation_frequency"] = 15  # Higher FPS for rendering
+    env.unwrapped.config["simulation_frequency"] = 60  # Higher FPS for rendering
 
-    for videos in range(5):
+    for videos in range(10):
         done = truncated = False
         state, info = env.reset()
         while not (done or truncated):
-            print("step")
+            #print("step")
             agent_mask = info["agent_mask"] if "agent_mask" in info.keys() else None
             state = [x.flatten() for x in state]
             state_dict = make_dict(state, n_agents)
