@@ -36,16 +36,31 @@ if __name__ == "__main__":
     # Number of parallel environment
     num_envs = 1
 
-    # Define the simple spread environment as a parallel environment
-    env = gym.make("intersection-multi-agent-v1", render_mode="rgb_array", config = {"action": {
-        "type": "MultiAgentAction",
-        "action_config": {
-        "type": "DiscreteAction",
+    config = {
+    "id": "intersection-multi-agent-v0",
+    "import_module": "highway_env",
+    "observation": {
+        "type": "MultiAgentObservation",
+        "observation_config": {
+            "type": "Kinematics",
+            "vehicles_count": 15,
+            "features": ["presence", "x", "y", "vx", "vy", "cos_h", "sin_h"],
+            "features_range": {
+                "x": [-100, 100],
+                "y": [-100, 100],
+                "vx": [-20, 20],
+                "vy": [-20, 20]
+            },
+            "absolute": True,
+            "order": "shuffled"
         }
     },
-    "render_agent": False, 
-    "duration": 13
-    })
+    "initial_vehicle_count": 3,
+    "controlled_vehicles": 2
+    }
+
+    # Define the simple spread environment as a parallel environment
+    env = gym.make("intersection-multi-agent-v0", render_mode="human", config = config)
     print(env.unwrapped.config)
     #env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
     obs, info = env.reset(seed=42)
@@ -79,16 +94,17 @@ if __name__ == "__main__":
     agent.load_checkpoint(path)
 
 
-    env = RecordVideo(
-        env, video_folder="intersection_maddpg/videos", episode_trigger=lambda e: True
-    )
-    env.unwrapped.set_record_video_wrapper(env)
+    #env = RecordVideo(
+    #    env, video_folder="intersection_maddpg/videos", episode_trigger=lambda e: True
+    #)
+    #env.unwrapped.set_record_video_wrapper(env)
     env.unwrapped.config["simulation_frequency"] = 15  # Higher FPS for rendering
 
-    for videos in range(10):
+    for videos in range(5):
         done = truncated = False
         state, info = env.reset()
         while not (done or truncated):
+            print("step")
             agent_mask = info["agent_mask"] if "agent_mask" in info.keys() else None
             state = [x.flatten() for x in state]
             state_dict = make_dict(state, n_agents)
@@ -109,6 +125,8 @@ if __name__ == "__main__":
             action_tuple = tuple(x.item() for x in action_tuple)
             next_state, reward, termination, truncation, info = env.step(action_tuple)
             state = next_state
+            if all(termination):
+                done = True
             
             # Render
             env.render()

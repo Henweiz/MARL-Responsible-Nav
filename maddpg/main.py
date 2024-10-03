@@ -52,21 +52,37 @@ if __name__ == '__main__':
     
     # Path & filename to save or load
     path = "./models/intersection"
-    filename = "MADDPG_intersection_trained_agent.pt"
+    filename = "MADDPG_trained_agent.pt"
 
     # Number of parallel environment
     num_envs = 1
-
-    # Define the simple spread environment as a parallel environment
-    env = gym.make("intersection-multi-agent-v1", render_mode=None, config = {"action": {
-        "type": "MultiAgentAction",
-        "action_config": {
-        "type": "DiscreteAction",
+    config = {
+    "id": "intersection-multi-agent-v0",
+    "import_module": "highway_env",
+    "observation": {
+        "type": "MultiAgentObservation",
+        "observation_config": {
+            "type": "Kinematics",
+            "vehicles_count": 15,
+            "features": ["presence", "x", "y", "vx", "vy", "cos_h", "sin_h"],
+            "features_range": {
+                "x": [-100, 100],
+                "y": [-100, 100],
+                "vx": [-20, 20],
+                "vy": [-20, 20]
+            },
+            "absolute": True,
+            "order": "shuffled"
         }
     },
-    "render_agent": False, 
-    "duration": 13
-    })
+    "action": {"type": "MultiAgentAction",
+               "action_config": {"type": "DiscreteAction"}},
+    "initial_vehicle_count": 3,
+    "controlled_vehicles": 2
+    }
+
+    # Define the simple spread environment as a parallel environment
+    env = gym.make("intersection-multi-agent-v0", render_mode=None, config = config)
     print(env.unwrapped.config)
     #env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
     obs, info = env.reset(seed=42)
@@ -90,8 +106,9 @@ if __name__ == '__main__':
         logger = Logger(filename, config)
 
     # Configure the multi-agent algo input arguments
+    print(env.observation_space(0).n)
     try:
-        state_dim = [(25,1) for agent in env.agents]
+        state_dim = [env.observation_space(0).n for agent in env.agents]
         one_hot = False
     except Exception:
         state_dim = [env.observation_space(agent).shape for agent in env.agents]
@@ -123,7 +140,7 @@ if __name__ == '__main__':
         agents.load_checkpoint("./models/intersection/MADDPG_intersection_trained_agent.pt")
 
     # Define training loop parameters
-    max_steps = 10000  # Max steps
+    max_steps = 20000  # Max steps
     learning_delay = 0  # Steps before starting learning
 
     evo_steps = 100  # Evolution frequency
