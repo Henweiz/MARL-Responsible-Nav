@@ -123,13 +123,18 @@ class MADDPGAgent:
             scores = np.zeros(num_envs)
             completed_episode_scores = []
             steps = 0
-            if self.INIT_HP["CHANNELS_LAST"]:
-                state = {
-                    agent_id: np.moveaxis(s, [-1], [-3])
-                    for agent_id, s in state.items()
-                }
+            
+
 
             for idx_step in range(evo_steps // num_envs):
+                #state = [x.flatten() for x in state]
+                state_dict = self.make_dict(state)
+                
+                if self.INIT_HP["CHANNELS_LAST"]:
+                    state_dict = {
+                        agent_id: np.moveaxis(s, [-1], [-3])
+                        for agent_id, s in state_dict.items()
+                    }
                 #print("Step: ", idx_step)
                 agent_mask = info["agent_mask"] if "agent_mask" in info.keys() else None
                 env_defined_actions = (
@@ -137,8 +142,9 @@ class MADDPGAgent:
                     if "env_defined_actions" in info.keys()
                     else None
                 )
-                state = [x.flatten() for x in state]
-                state_dict = self.make_dict(state)
+
+                
+                #print(state_dict.values.shape)
                 # Get next action from agent
                 cont_actions, discrete_action = agent.get_action(
                     states=state_dict,
@@ -157,7 +163,8 @@ class MADDPGAgent:
                 action_tuple = tuple(x.item() for x in action_tuple)
                 next_state, reward, termination, truncation, info = env.step(action_tuple)
                 
-                next_state_dict = self.make_dict([x.flatten() for x in next_state])
+                #next_state_dict = self.make_dict([x.flatten() for x in next_state])
+                next_state_dict = self.make_dict(next_state)
                 reward_dict = self.make_dict(reward)
                 #print(reward_dict)
                 termination_dict = self.make_dict(termination)
@@ -170,9 +177,9 @@ class MADDPGAgent:
 
                 # Image processing if necessary for the environment
                 if self.INIT_HP["CHANNELS_LAST"]:
-                    next_state = {
+                    next_state_dict = {
                         agent_id: np.moveaxis(ns, [-1], [-3])
-                        for agent_id, ns in next_state.items()
+                        for agent_id, ns in next_state_dict.items()
                     }
                 
                 cont_actions = {k: np.squeeze(v) for (k,v) in cont_actions.items()}

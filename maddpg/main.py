@@ -22,15 +22,25 @@ if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Define the network configuration
+    '''  
     NET_CONFIG = {
         "arch": "mlp",  # Network architecture
         "hidden_size": [64, 64],  # Actor hidden size
     }
+    '''
+    NET_CONFIG = {
+        "arch": "cnn",  # Network architecture
+        "hidden_size": [64, 64],  # Actor hidden size
+        "channel_size": [64, 64],
+        "kernel_size": [3, 3],
+        "stride_size": [1, 1]
+    }
+   
 
     # Define the initial hyperparameters
     INIT_HP = {
         # Swap image channels dimension from last to first [H, W, C] -> [C, H, W]
-        "CHANNELS_LAST": False,
+        "CHANNELS_LAST": True,
         "BATCH_SIZE": 32,  # Batch size
         "O_U_NOISE": True,  # Ornstein Uhlenbeck action noise
         "EXPL_NOISE": 0.1,  # Action noise scale
@@ -45,7 +55,7 @@ if __name__ == '__main__':
         "TAU": 0.01,  # For soft update of target parameters
         "POLICY_FREQ": 2,  # Policy frequnecy
         "POP_SIZE": 1,  # Population size, 1 if we do not want to use Hyperparameter Optimization
-        "LOAD_AGENT": True, # Load previous trained agent
+        "LOAD_AGENT": False, # Load previous trained agent
         "SAVE_AGENT": True, # Save the agent
         "LOGGING": False
     }
@@ -62,7 +72,7 @@ if __name__ == '__main__':
         "type": "MultiAgentObservation",
         "observation_config": {
             "type": "Kinematics",
-            "vehicles_count": 15,
+            "vehicles_count": 10,
             "features": ["presence", "x", "y", "vx", "vy", "cos_h", "sin_h"],
             "features_range": {
                 "x": [-100, 100],
@@ -79,8 +89,33 @@ if __name__ == '__main__':
     "controlled_vehicles": 2
     }
 
+    config2 = {
+        "id": "intersection-multi-agent-v1",
+        "observation": {
+            "type": "MultiAgentObservation",
+            "observation_config": {
+                "type": "OccupancyGrid",
+                    "vehicles_count": 15,
+                    "features": ["presence", "x", "y", "vx", "vy", "cos_h", "sin_h"],
+                    "features_range": {
+                        "x": [-100, 100],
+                        "y": [-100, 100],
+                        "vx": [-20, 20],
+                        "vy": [-20, 20]
+                    },
+                    "grid_size": [[-27.5, 27.5], [-27.5, 27.5]],
+                    "grid_step": [5, 5],
+                    "absolute": False
+            }
+        },
+        "action": {"type": "MultiAgentAction",
+               "action_config": {"type": "DiscreteMetaAction"}},
+        "initial_vehicle_count": 8,
+        "controlled_vehicles": 2
+    }
+
     # Define the simple spread environment as a parallel environment
-    env = gym.make("intersection-multi-agent-v1", render_mode=None, config = config)
+    env = gym.make("intersection-multi-agent-v1", render_mode=None, config = config2)
     print(env.unwrapped.config)
     #env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
     obs, info = env.reset(seed=42)
@@ -104,11 +139,15 @@ if __name__ == '__main__':
         logger = Logger(filename, config)
 
     # Configure the multi-agent algo input arguments
-    try:
+    if NET_CONFIG["arch"] == "mlp":
+        print(obs[0].shape)
         state_dim = [(obs[agent].flatten().shape[0], 1) for agent, _ in enumerate(env.agents)]
+        print(state_dim)
         one_hot = False
-    except Exception:
-        state_dim = [env.observation_space(agent).shape for agent in env.agents]
+    else:
+        state_dim = [obs[agent].shape for agent, _ in enumerate(env.agents)]
+        #state_dim = [np.moveaxis(np.zeros(state_dim[agent]), [-1], [-3]).shape for agent, _ in enumerate(env.agents)]
+        print(state_dim)
         one_hot = False
     try:
         action_dim = [env.action_space[agent].n for agent, _ in enumerate(env.agents)]
