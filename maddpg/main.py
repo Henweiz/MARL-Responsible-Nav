@@ -45,7 +45,7 @@ if __name__ == '__main__':
         "TAU": 0.01,  # For soft update of target parameters
         "POLICY_FREQ": 2,  # Policy frequnecy
         "POP_SIZE": 1,  # Population size, 1 if we do not want to use Hyperparameter Optimization
-        "LOAD_AGENT": True, # Load previous trained agent
+        "LOAD_AGENT": False, # Load previous trained agent
         "SAVE_AGENT": True, # Save the agent
         "LOGGING": False
     }
@@ -74,8 +74,10 @@ if __name__ == '__main__':
         }
     },
     "action": {"type": "MultiAgentAction",
-               "action_config": {"type": "DiscreteMetaAction"}},
-    "initial_vehicle_count": 10,
+               "action_config": {"type": "DiscreteMetaAction","longitudinal": True,
+                "lateral": False}
+               },
+    "initial_vehicle_count": 35,
     "controlled_vehicles": 2
     }
 

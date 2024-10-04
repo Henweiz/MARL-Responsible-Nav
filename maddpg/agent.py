@@ -13,6 +13,8 @@ from agilerl.algorithms.maddpg import MADDPG
 
 import gymnasium as gym
 import highway_env
+import copy
+from utility.FeAR import count_FeasibleActions,cal_FeAR_ij,cal_MdR
 
 class MADDPGAgent:
     def __init__(self,
@@ -151,11 +153,35 @@ class MADDPGAgent:
                 else:
                     action = cont_actions
 
+                #Deepcopy current agents
+                before_action_agents = copy.deepcopy(env.unwrapped.road.vehicles)
+                #Get MdRs
+                MdR = cal_MdR(before_action_agents)
+                
+                #Deepcopy current env
+                before_action_env = copy.deepcopy(env)
                 
                 # Act in environment
                 action_tuple  = tuple(action.values())
                 action_tuple = tuple(x.item() for x in action_tuple)
                 next_state, reward, termination, truncation, info = env.step(action_tuple)
+                
+                #Calculate FeAR
+                FeAR = np.zeros(shape = (len(env.unwrapped.road.vehicles),len(env.unwrapped.road.vehicles)))
+
+                FeAR_weight = -5.0
+
+                for i in range(self.INIT_HP["N_AGENTS"]):
+                    for j in range(len(env.unwrapped.road.vehicles)-1):
+                        FeAR[i,j] = cal_FeAR_ij(i, j, before_action_agents, info['action'], MdR, env, before_action_env)
+                        
+                print(f'{FeAR}=')
+                print(f'{i}=')
+                print(f'{j}=')
+                reward += FeAR_weight * FeAR.sum()
+
+                del before_action_agents
+                del before_action_env
                 
                 next_state_dict = self.make_dict([x.flatten() for x in next_state])
                 reward_dict = self.make_dict(reward)
