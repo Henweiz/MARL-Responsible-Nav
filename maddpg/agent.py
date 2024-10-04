@@ -153,9 +153,8 @@ class MADDPGAgent:
                 else:
                     action = cont_actions
 
-                #Deepcopy current agents
-                before_action_agents = copy.deepcopy(env.unwrapped.road.vehicles)
                 #Get MdRs
+                before_action_agents = copy.deepcopy(env.road.vehicles)
                 MdR = cal_MdR(before_action_agents)
                 
                 #Deepcopy current env
@@ -173,7 +172,7 @@ class MADDPGAgent:
 
                 for i in range(self.INIT_HP["N_AGENTS"]):
                     for j in range(len(env.unwrapped.road.vehicles)-1):
-                        FeAR[i,j] = cal_FeAR_ij(i, j, before_action_agents, info['action'], MdR, env, before_action_env)
+                        FeAR[i,j] += cal_FeAR_ij(i, j, before_action_agents, info['action'], MdR, env, before_action_env)
                         
                 print(f'{FeAR}=')
                 print(f'{i}=')
