@@ -31,7 +31,7 @@ if __name__ == '__main__':
     NET_CONFIG = {
         "arch": "cnn",  # Network architecture
         "hidden_size": [64, 64],  # Actor hidden size
-        "channel_size": [64, 64],
+        "channel_size": [32, 32],
         "kernel_size": [3, 3],
         "stride_size": [1, 1]
     }
@@ -41,7 +41,7 @@ if __name__ == '__main__':
     INIT_HP = {
         # Swap image channels dimension from last to first [H, W, C] -> [C, H, W]
         "CHANNELS_LAST": True,
-        "BATCH_SIZE": 32,  # Batch size
+        "BATCH_SIZE": 64,  # Batch size
         "O_U_NOISE": True,  # Ornstein Uhlenbeck action noise
         "EXPL_NOISE": 0.1,  # Action noise scale
         "MEAN_NOISE": 0.0,  # Mean action noise
@@ -49,20 +49,24 @@ if __name__ == '__main__':
         "DT": 0.01,  # Timestep for OU noise
         "LR_ACTOR": 0.001,  # Actor learning rate
         "LR_CRITIC": 0.001,  # Critic learning rate
-        "GAMMA": 0.98,  # Discount factor
-        "MEMORY_SIZE": 100000,  # Max memory buffer size
+        "GAMMA": 0.95,  # Discount factor
+        "MEMORY_SIZE": 200000,  # Max memory buffer size
         "LEARN_STEP": 20,  # Learning frequency
         "TAU": 0.01,  # For soft update of target parameters
         "POLICY_FREQ": 2,  # Policy frequnecy
         "POP_SIZE": 1,  # Population size, 1 if we do not want to use Hyperparameter Optimization
-        "LOAD_AGENT": False, # Load previous trained agent
+        "MAX_STEPS": 25000,
+        "TRAIN_STEPS": 500,
+        "LOAD_AGENT": True, # Load previous trained agent
         "SAVE_AGENT": True, # Save the agent
-        "LOGGING": False
+        "LOGGING": True,
+        "RESUME": True,
+        "RESUME_ID": "ywalsrkh"
     }
     
     # Path & filename to save or load
     path = "./models/intersection"
-    filename = "MADDPG_trained_agent.pt"
+    filename = "MADDPG_4_trained_agent.pt"
 
     # Number of parallel environment
     num_envs = 1
@@ -110,8 +114,10 @@ if __name__ == '__main__':
         },
         "action": {"type": "MultiAgentAction",
                "action_config": {"type": "DiscreteMetaAction"}},
-        "initial_vehicle_count": 8,
-        "controlled_vehicles": 2
+        "initial_vehicle_count": 10,
+        "controlled_vehicles": 4,
+        "high_speed_reward": 0,
+        "arrived_reward": 3
     }
 
     # Define the simple spread environment as a parallel environment
@@ -136,7 +142,10 @@ if __name__ == '__main__':
             "Tau": INIT_HP["TAU"],
             "Population size": INIT_HP["POP_SIZE"]
         }
-        logger = Logger(filename, config)
+        if INIT_HP["RESUME"]:
+            logger = Logger(filename, config, id=INIT_HP["RESUME_ID"])
+        else:
+            logger = Logger(filename, config)
 
     # Configure the multi-agent algo input arguments
     if NET_CONFIG["arch"] == "mlp":
@@ -151,6 +160,7 @@ if __name__ == '__main__':
         one_hot = False
     try:
         action_dim = [env.action_space[agent].n for agent, _ in enumerate(env.agents)]
+        print(action_dim)
         INIT_HP["DISCRETE_ACTIONS"] = True
         INIT_HP["MAX_ACTION"] = None
         INIT_HP["MIN_ACTION"] = None
@@ -177,10 +187,10 @@ if __name__ == '__main__':
         agents.load_checkpoint(load_path)
 
     # Define training loop parameters
-    max_steps = 60000  # Max steps
+    max_steps = INIT_HP["MAX_STEPS"]  # Max steps
     learning_delay = 0  # Steps before starting learning
 
-    evo_steps = 100  # Evolution frequency
+    evo_steps = INIT_HP["TRAIN_STEPS"]  # Evolution frequency
     eval_steps = None  # Evaluation steps per episode - go until done
     eval_loop = 1  # Number of evaluation episodes
 
@@ -201,7 +211,7 @@ if __name__ == '__main__':
         total_steps += steps
         pbar.update(steps // len(agents.pop))
         if INIT_HP["LOGGING"]:
-            logger.log(np.mean(mean_scores), agents.total_loss())
+            logger.log(np.mean(mean_scores), agents.total_loss(), agents.agents_steps()[0])
 
         print(f"--- Global steps {total_steps} ---")
         print(f"Steps {agents.agents_steps()}")

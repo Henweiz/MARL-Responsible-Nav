@@ -31,7 +31,7 @@ if __name__ == "__main__":
     
     # Path & filename to save or load
     path = "./models/intersection"
-    filename = "MADDPG_intersection_trained_agent.pt"
+    filename = "MADDPG_single_trained_agent.pt"
 
     # Number of parallel environment
     num_envs = 1
@@ -81,7 +81,7 @@ if __name__ == "__main__":
         "action": {"type": "MultiAgentAction",
                "action_config": {"type": "DiscreteMetaAction"}},
         "initial_vehicle_count": 8,
-        "controlled_vehicles": 2
+        "controlled_vehicles": 1
     }
 
     # Define the simple spread environment as a parallel environment
@@ -132,7 +132,7 @@ if __name__ == "__main__":
     )
 
     # Load the previous trained agent.
-    path = "./models/intersection/MADDPG_trained_agent.pt"
+    path = "./models/intersection/MADDPG_single_trained_agent.pt"
     agent.load_checkpoint(path)
 
 

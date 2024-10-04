@@ -127,7 +127,8 @@ class MADDPGAgent:
 
 
             for idx_step in range(evo_steps // num_envs):
-                #state = [x.flatten() for x in state]
+                if self.NET_CONFIG["arch"] == "mlp":
+                    state = [x.flatten() for x in state]
                 state_dict = self.make_dict(state)
                 
                 if self.INIT_HP["CHANNELS_LAST"]:
@@ -163,8 +164,10 @@ class MADDPGAgent:
                 action_tuple = tuple(x.item() for x in action_tuple)
                 next_state, reward, termination, truncation, info = env.step(action_tuple)
                 
-                #next_state_dict = self.make_dict([x.flatten() for x in next_state])
-                next_state_dict = self.make_dict(next_state)
+                if self.NET_CONFIG["arch"] == "mlp":
+                    next_state_dict = self.make_dict([x.flatten() for x in next_state])
+                else:
+                    next_state_dict = self.make_dict(next_state)
                 reward_dict = self.make_dict(reward)
                 #print(reward_dict)
                 termination_dict = self.make_dict(termination)
@@ -232,14 +235,6 @@ class MADDPGAgent:
                         agent.scores.append(scores[i])
                         scores[i] = 0
                         state, info = env.reset()
-                '''
-                for idx, d in enumerate((term_array)):
-                    if np.any(d) or truncation:
-                        completed_episode_scores.append(scores[idx])
-                        agent.scores.append(scores[idx])
-                        scores[idx] = 0
-                        reset_noise_indices.append(idx)
-                        '''
                 
                 agent.reset_action_noise(reset_noise_indices)
                 
