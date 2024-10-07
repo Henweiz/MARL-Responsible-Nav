@@ -77,7 +77,7 @@ if __name__ == '__main__':
                "action_config": {"type": "DiscreteMetaAction","longitudinal": True,
                 "lateral": False}
                },
-    "initial_vehicle_count": 35,
+    "initial_vehicle_count": 15,
     "controlled_vehicles": 2
     }
 

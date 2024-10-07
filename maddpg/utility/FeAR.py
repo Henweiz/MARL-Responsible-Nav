@@ -105,10 +105,11 @@ def count_FeasibleActions(i, j, action, env, DiscreteMetaAction={0: "SLOWER", 1:
     return: the number of feasible actions of agent others given the movement of agent ego, int
     '''
 
-    if type(env.unwrapped.road.vehicles[j]) == IDMVehicle:
+    
+    if type(env.unwrapped.road.vehicles[j]) != type(env.unwrapped.controlled_vehicles[0]):
 
         environment = copy.deepcopy(env)
-        _, _, _, _, info = environment.step(tuple(action)
+        _, _, _, _, info = environment.step(tuple(action))
         agent_j = environment.unwrapped.road.vehicles[j]
 
         if agent_j.crashed == True:
@@ -118,7 +119,7 @@ def count_FeasibleActions(i, j, action, env, DiscreteMetaAction={0: "SLOWER", 1:
             del environment
             return 1
 
-    elif type(env.unwrapped.road.vehicles[j]) == MDPVehicle:
+    elif type(env.unwrapped.road.vehicles[j]) == type(env.unwrapped.controlled_vehicles[0]):
 
         count = 0
 
@@ -126,7 +127,7 @@ def count_FeasibleActions(i, j, action, env, DiscreteMetaAction={0: "SLOWER", 1:
 
             action[j] = action_j
             environment = copy.deepcopy(env)
-            _, _, _, _, info = environment.step(tuple(action)
+            _, _, _, _, info = environment.step(tuple(action))
             agent_j = environment.unwrapped.road.vehicles[j]
 
             if agent_j.crashed == False:
@@ -152,7 +153,7 @@ def cal_FeAR_ij(i, j, action, MdR, before_action_env, epsilon = 1e-6):
 
     return: FrAR_ij, float 
     '''
-
+    action = list(action)
     if i == j or action[i] == MdR[i]:
         return 0.0
 
@@ -184,4 +185,3 @@ def cal_MdR(agents, DEFAULT_TARGET_SPEEDS=[0, 4.5, 9]):
         MdR.append(MdR_i)
 
     return MdR
-
