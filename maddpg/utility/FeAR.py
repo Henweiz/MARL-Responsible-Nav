@@ -122,10 +122,11 @@ def count_FeasibleActions(i, j, action, env, DiscreteMetaAction={0: "SLOWER", 1:
     elif type(env.unwrapped.road.vehicles[j]) == type(env.unwrapped.controlled_vehicles[0]):
 
         count = 0
+        index_j = env.unwrapped.controlled_vehicles.index(env.unwrapped.road.vehicles[j])
 
         for action_j in range(len(DiscreteMetaAction)):
 
-            action[j] = action_j
+            action[index_j] = action_j
             environment = copy.deepcopy(env)
             _, _, _, _, info = environment.step(tuple(action))
             agent_j = environment.unwrapped.road.vehicles[j]
@@ -153,8 +154,12 @@ def cal_FeAR_ij(i, j, action, MdR, before_action_env, epsilon = 1e-6):
 
     return: FrAR_ij, float 
     '''
+
     action = list(action)
-    if i == j or action[i] == MdR[i]:
+    agent_i = before_action_env.unwrapped.road.controlled_vehicles[i]
+    agent_j = before_action_env.unwrapped.road.vehicles[j]
+
+    if agent_i == agent_j or action[i] == MdR[i]:
         return 0.0
 
     else:

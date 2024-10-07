@@ -170,7 +170,7 @@ class MADDPGAgent:
                 FeAR_weight = -5.0
 
                 for i in range(self.INIT_HP["N_AGENTS"]):
-                    for j in range(len(env.unwrapped.road.vehicles)-1):
+                    for j in range(len(env.unwrapped.road.vehicles) - 1):
                         FeAR[i,j] += cal_FeAR_ij(i, j, info['action'], MdR, before_action_env)
                         
                 print(f'{FeAR}=')
