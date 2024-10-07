@@ -154,8 +154,7 @@ class MADDPGAgent:
                     action = cont_actions
 
                 #Get MdRs
-                before_action_agents = copy.deepcopy(env.road.vehicles)
-                MdR = cal_MdR(before_action_agents)
+                MdR = cal_MdR(env.unwrapped.road.vehicles)
                 
                 #Deepcopy current env
                 before_action_env = copy.deepcopy(env)
@@ -172,14 +171,13 @@ class MADDPGAgent:
 
                 for i in range(self.INIT_HP["N_AGENTS"]):
                     for j in range(len(env.unwrapped.road.vehicles)-1):
-                        FeAR[i,j] += cal_FeAR_ij(i, j, before_action_agents, info['action'], MdR, env, before_action_env)
+                        FeAR[i,j] += cal_FeAR_ij(i, j, info['action'], MdR, before_action_env)
                         
                 print(f'{FeAR}=')
                 print(f'{i}=')
                 print(f'{j}=')
                 reward += FeAR_weight * FeAR.sum()
 
-                del before_action_agents
                 del before_action_env
                 
                 next_state_dict = self.make_dict([x.flatten() for x in next_state])

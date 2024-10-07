@@ -10,6 +10,8 @@ from typing import Callable, List, Sequence, Tuple, Union
 # dt = 1 / 15
 Vector = Union[np.ndarray, Sequence[float]]
 
+
+
 def project_polygon(polygon: Vector, axis: Vector) -> tuple[float, float]:
     min_p, max_p = None, None
     for p in polygon:
@@ -20,12 +22,14 @@ def project_polygon(polygon: Vector, axis: Vector) -> tuple[float, float]:
             max_p = projected
     return min_p, max_p
 
+
 def interval_distance(min_a: float, max_a: float, min_b: float, max_b: float):
     """
     Calculate the distance between [minA, maxA] and [minB, maxB]
     The distance will be negative if the intervals overlap
     """
     return min_b - max_a if min_a < min_b else min_a - max_b
+
 
 def are_polygons_intersecting(
     a: Vector, b: Vector, displacement_a: Vector, displacement_b: Vector
@@ -74,6 +78,7 @@ def are_polygons_intersecting(
         translation = min_distance * translation_axis
     return intersecting, will_intersect, translation
 
+
 def _is_colliding(ego, other, delta_speed, dt=1/15):
     # Fast spherical pre-check
     if (
@@ -93,38 +98,52 @@ def _is_colliding(ego, other, delta_speed, dt=1/15):
     )
 
 
-def count_FeasibleActions(agent_i, agent_j, DiscreteMetaAction={0: "SLOWER", 1: "IDLE", 2: "FASTER"}, dt=1/15):
+def count_FeasibleActions(i, j, action, env, DiscreteMetaAction={0: "SLOWER", 1: "IDLE", 2: "FASTER"}):
     '''
     Function that counts the number of feasible actions of agent "others" given the movement of agent "ego"
 
     return: the number of feasible actions of agent others given the movement of agent ego, int
     '''
 
-    count = 0
+    if type(env.unwrapped.road.vehicles[j]) == IDMVehicle:
 
-    for action_j in range(len(DiscreteMetaAction)): # 3 is the number of actions
+        environment = copy.deepcopy(env)
+        _, _, _, _, info = environment.step(tuple(action)
+        agent_j = environment.unwrapped.road.vehicles[j]
 
-        copy_agent_j = copy.deepcopy(agent_j)
-        
-        delta_speed = 5
-        
-        if action_j == 0:
-            delta_speed = -5
-        elif action_j == 1:
-            delta_speed = -5
-    
-        
-        _, will_collide, _ = _is_colliding(copy_agent_j,agent_i, delta_speed)
+        if agent_j.crashed == True:
+            del environment
+            return 0
+        else:
+            del environment
+            return 1
 
-        if will_collide == False:
-            count += 1
+    elif type(env.unwrapped.road.vehicles[j]) == MDPVehicle:
 
-        del copy_agent_j
+        count = 0
 
-    return count
+        for action_j in range(len(DiscreteMetaAction)):
+
+            action[j] = action_j
+            environment = copy.deepcopy(env)
+            _, _, _, _, info = environment.step(tuple(action)
+            agent_j = environment.unwrapped.road.vehicles[j]
+
+            if agent_j.crashed == False:
+                del environment
+                count += 1
+            else:
+                del environment
+
+        return count
+
+    else:
+        raise Exception("Unknown type of vehicle.")
+
+    return
 
 
-def cal_FeAR_ij(i, j, before_action_agents, action, MdR, env, before_action_env, epsilon = 1e-6):
+def cal_FeAR_ij(i, j, action, MdR, before_action_env, epsilon = 1e-6):
     '''
     Function that calculates the FeAR value of agent i on agent j, i.e. FeAR_ij
 
@@ -133,33 +152,27 @@ def cal_FeAR_ij(i, j, before_action_agents, action, MdR, env, before_action_env,
 
     return: FrAR_ij, float 
     '''
-    action = list(action)
+
     if i == j or action[i] == MdR[i]:
         return 0.0
 
     else:
-        agent_j = before_action_agents[j]
-
-        agent_i_Actioni = env.road.vehicles[i]
-
         action_MdRi = copy.deepcopy(action)
         action_MdRi[i] = MdR[i]
-        _, _, _, _, info = before_action_env.step(tuple(action_MdRi))
-        agent_i_MdRi = before_action_env.road.vehicles[i]
             
-        n_FeasibleActions_MdRi_j = count_FeasibleActions(agent_i_MdRi, agent_j)
-        n_FeasibleActions_Actioni_j = count_FeasibleActions(agent_i_Actioni, agent_j)
+        n_FeasibleActions_MdRi_j = count_FeasibleActions(i, j, action_MdRi, before_action_env)
+        n_FeasibleActions_Actioni_j = count_FeasibleActions(i, j, action, before_action_env)
 
         FeAR_ij = np.clip( ( (n_FeasibleActions_MdRi_j - n_FeasibleActions_Actioni_j) / (n_FeasibleActions_MdRi_j + epsilon) ), -1, 1)
 
-
         return FeAR_ij
 
-def cal_MdR(agents):
+
+def cal_MdR(agents, DEFAULT_TARGET_SPEEDS=[0, 4.5, 9]):
     '''
     Function that calculate the MdR of all agents in the environment
 
-    DEFAULT_TARGET_SPEEDS = [20, 25, 30] m/s
+    DEFAULT_TARGET_SPEEDS = [0, 4.5, 9] m/s
     DiscreteMetaAction = {0: "SLOWER", 1: "IDLE", 2: "FASTER"}
 
     return: list of intergers, len = n_agents
@@ -167,7 +180,7 @@ def cal_MdR(agents):
 
     MdR = []
     for agent in agents:
-        MdR_i = 2 if agent.speed <= 23 else (0 if agent.speed >= 27 else 1)
+        MdR_i = 2 if agent.speed <= (DEFAULT_TARGET_SPEEDS[0] + 1.0) else (0 if agent.speed >= (DEFAULT_TARGET_SPEEDS[2] + 1.0) else 1)
         MdR.append(MdR_i)
 
     return MdR
