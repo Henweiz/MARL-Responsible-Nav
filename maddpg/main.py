@@ -22,7 +22,7 @@ if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Define the network configuration
-    '''  
+    '''
     NET_CONFIG = {
         "arch": "mlp",  # Network architecture
         "hidden_size": [64, 64],  # Actor hidden size
@@ -32,9 +32,10 @@ if __name__ == '__main__':
         "arch": "cnn",  # Network architecture
         "hidden_size": [64, 64],  # Actor hidden size
         "channel_size": [32, 32],
-        "kernel_size": [3, 3],
-        "stride_size": [1, 1]
+        "kernel_size": [2, 2],
+        "stride_size": [2, 2]
     }
+    
    
 
     # Define the initial hyperparameters
@@ -49,24 +50,24 @@ if __name__ == '__main__':
         "DT": 0.01,  # Timestep for OU noise
         "LR_ACTOR": 0.001,  # Actor learning rate
         "LR_CRITIC": 0.001,  # Critic learning rate
-        "GAMMA": 0.95,  # Discount factor
-        "MEMORY_SIZE": 200000,  # Max memory buffer size
-        "LEARN_STEP": 20,  # Learning frequency
+        "GAMMA": 0.99,  # Discount factor
+        "MEMORY_SIZE": 500000,  # Max memory buffer size
+        "LEARN_STEP": 50,  # Learning frequency
         "TAU": 0.01,  # For soft update of target parameters
         "POLICY_FREQ": 2,  # Policy frequnecy
         "POP_SIZE": 1,  # Population size, 1 if we do not want to use Hyperparameter Optimization
-        "MAX_STEPS": 25000,
+        "MAX_STEPS": 50000,
         "TRAIN_STEPS": 500,
         "LOAD_AGENT": True, # Load previous trained agent
         "SAVE_AGENT": True, # Save the agent
         "LOGGING": True,
         "RESUME": True,
-        "RESUME_ID": "ywalsrkh"
+        "RESUME_ID": "6v7adywb"
     }
     
     # Path & filename to save or load
     path = "./models/intersection"
-    filename = "MADDPG_4_trained_agent.pt"
+    filename = "MADDPG_dense_trained_agent.pt"
 
     # Number of parallel environment
     num_envs = 1
@@ -88,13 +89,41 @@ if __name__ == '__main__':
         }
     },
     "action": {"type": "MultiAgentAction",
-               "action_config": {"type": "DiscreteMetaAction"}},
-    "initial_vehicle_count": 10,
-    "controlled_vehicles": 2
+               "action_config": {"type": "DiscreteAction"}},
+    "initial_vehicle_count": 20,
+    "controlled_vehicles": 1,
+    "policy_frequency": 15
     }
 
     config2 = {
         "id": "intersection-multi-agent-v1",
+        "observation": {
+            "type": "MultiAgentObservation",
+            "observation_config": {
+                "type": "OccupancyGrid",
+                    "vehicles_count": 15,
+                    "features": ["presence", "x", "y", "vx", "vy", "cos_h", "sin_h"],
+                    "features_range": {
+                        "x": [-100, 100],
+                        "y": [-100, 100],
+                        "vx": [-20, 20],
+                        "vy": [-20, 20]
+                    },
+                    "grid_size": [[-32, 32], [-32, 32]],
+                    "grid_step": [2, 2],
+                    "absolute": False
+            }
+        },
+        "action": {"type": "MultiAgentAction",
+               "action_config": {"type": "DiscreteMetaAction",
+                                 "lateral": False}},
+        "initial_vehicle_count": 20,
+        "controlled_vehicles": 1,
+        "policy_frequency": 15
+    }
+
+    config3 = {
+        "id": "highway-fast-v0",
         "observation": {
             "type": "MultiAgentObservation",
             "observation_config": {
@@ -114,11 +143,9 @@ if __name__ == '__main__':
         },
         "action": {"type": "MultiAgentAction",
                "action_config": {"type": "DiscreteMetaAction"}},
-        "initial_vehicle_count": 10,
-        "controlled_vehicles": 4,
-        "high_speed_reward": 0,
-        "arrived_reward": 3
+        "controlled_vehicles": 2
     }
+    
 
     # Define the simple spread environment as a parallel environment
     env = gym.make("intersection-multi-agent-v1", render_mode=None, config = config2)
@@ -183,8 +210,7 @@ if __name__ == '__main__':
     agents = MADDPGAgent(state_dim, action_dim, one_hot, NET_CONFIG, INIT_HP, num_envs, device, HPO=True)
 
     if INIT_HP["LOAD_AGENT"]:
-        load_path = os.path.join(path, filename)
-        agents.load_checkpoint(load_path)
+        agents.load_checkpoint(path, filename)
 
     # Define training loop parameters
     max_steps = INIT_HP["MAX_STEPS"]  # Max steps

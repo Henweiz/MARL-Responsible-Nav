@@ -277,9 +277,11 @@ class MADDPGAgent:
             self.pop[0].save_checkpoint(save_path)
     
     # Load agents.
-    def load_checkpoint(self, path):
+    def load_checkpoint(self, path, filename):
+        load_path = os.path.join(path, filename)
+        memory_path = os.path.join(path, "memory.pkl")
         for agent in self.pop:
-            agent.load_checkpoint(path)
+            agent.load_checkpoint(load_path)
             #agent.steps[-1] = 0
     
     # Check for reached the max steps number accross all agents.
