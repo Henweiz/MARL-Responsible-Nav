@@ -127,9 +127,15 @@ class MADDPGAgent:
 
 
             for idx_step in range(evo_steps // num_envs):
+
                 if self.NET_CONFIG["arch"] == "mlp":
                     state = [x.flatten() for x in state]
+                if self.INIT_HP["CUSTOM_ENV"]:
+                    state = [np.concatenate(state)] 
+ 
+                #print(state)
                 state_dict = self.make_dict(state)
+                #print(state_dict)
                 
                 if self.INIT_HP["CHANNELS_LAST"]:
                     state_dict = {
@@ -161,16 +167,22 @@ class MADDPGAgent:
                 
                 # Act in environment
                 action_tuple  = tuple(action.values())
-                action_tuple = tuple(x.item() for x in action_tuple)
-                next_state, reward, termination, truncation, info = env.step(action_tuple)
+                
+                if self.INIT_HP["CUSTOM_ENV"]:
+                    next_state, reward, termination, truncation, info = env.step(action_tuple[0])
+                else:
+                    action_tuple = tuple(x.item() for x in action_tuple)
+                    next_state, reward, termination, truncation, info = env.step(action_tuple)
+                if self.INIT_HP["CUSTOM_ENV"]:
+                    next_state = [np.concatenate(next_state)]   
                 
                 if self.NET_CONFIG["arch"] == "mlp":
                     next_state_dict = self.make_dict([x.flatten() for x in next_state])
                 else:
                     next_state_dict = self.make_dict(next_state)
-                reward_dict = self.make_dict(reward)
+                reward_dict = self.make_dict([reward])
                 #print(reward_dict)
-                termination_dict = self.make_dict(termination)
+                termination_dict = self.make_dict([termination])
             
                 
 
@@ -279,7 +291,7 @@ class MADDPGAgent:
     # Load agents.
     def load_checkpoint(self, path, filename):
         load_path = os.path.join(path, filename)
-        memory_path = os.path.join(path, "memory.pkl")
+        #memory_path = os.path.join(path, "memory.pkl")
         for agent in self.pop:
             agent.load_checkpoint(load_path)
             #agent.steps[-1] = 0

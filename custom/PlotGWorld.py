@@ -17,7 +17,7 @@ import glob
 from PIL import Image
 import os
 from tqdm import tqdm
-import GWorld
+import custom.grid_world as grid_world
 import Agent
 import Emergence
 

@@ -1,8 +1,7 @@
 import gymnasium as gym
 import os
-from stable_baselines3 import PPO
+import numpy as np
 from customenv import CustomEnv
-from stable_baselines3.common.env_checker import check_env
 from gymnasium.utils.step_api_compatibility import convert_to_terminated_truncated_step_api
 
 models_dir = "models/PPO"
@@ -30,8 +29,10 @@ env = CustomEnv()
 # 		print("action", random_action)
 # 		obs, reward, term, trunc, info = env.step(random_action)
 # 		print('reward', reward)
+print(env.observation_space.shape)
+print(env.action_space.n)
 		
-
+'''
 model = PPO('MlpPolicy', env, verbose=1, tensorboard_log=log_dir)
 
 
@@ -39,3 +40,4 @@ TIMESTEPS = 10000
 for i in range (1,100):
     model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False, tb_log_name="PPO")
     model.save(f"{models_dir}/{TIMESTEPS*i}")
+'''

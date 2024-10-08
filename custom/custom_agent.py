@@ -3,7 +3,7 @@ import numpy as np; np.random.seed(0)
 VerboseFlag = False
 
 
-class Agent:
+class CustomAgent:
     def __init__(self):
 
         ActionNames, ActionMoves = DefineActions()

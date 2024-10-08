@@ -14,15 +14,18 @@ from agilerl.hpo.tournament import TournamentSelection
 from agilerl.utils.utils import create_population
 from agilerl.wrappers.pettingzoo_wrappers import PettingZooVectorizationParallelWrapper
 
-from agent import MADDPGAgent
+from maddpg.agent import MADDPGAgent
 from log import Logger
+from custom.customenv import CustomEnv
+from custom.grid_world import GWorld
+
 
 if __name__ == '__main__':
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Define the network configuration
-    '''
+    
     NET_CONFIG = {
         "arch": "mlp",  # Network architecture
         "hidden_size": [64, 64],  # Actor hidden size
@@ -35,13 +38,14 @@ if __name__ == '__main__':
         "kernel_size": [2, 2],
         "stride_size": [2, 2]
     }
-    
+    '''
    
 
     # Define the initial hyperparameters
     INIT_HP = {
         # Swap image channels dimension from last to first [H, W, C] -> [C, H, W]
-        "CHANNELS_LAST": True,
+        "CUSTOM_ENV": True,
+        "CHANNELS_LAST": False,
         "BATCH_SIZE": 64,  # Batch size
         "O_U_NOISE": True,  # Ornstein Uhlenbeck action noise
         "EXPL_NOISE": 0.1,  # Action noise scale
@@ -51,50 +55,28 @@ if __name__ == '__main__':
         "LR_ACTOR": 0.001,  # Actor learning rate
         "LR_CRITIC": 0.001,  # Critic learning rate
         "GAMMA": 0.99,  # Discount factor
-        "MEMORY_SIZE": 500000,  # Max memory buffer size
-        "LEARN_STEP": 50,  # Learning frequency
+        "MEMORY_SIZE": 200000,  # Max memory buffer size
+        "LEARN_STEP": 20,  # Learning frequency
         "TAU": 0.01,  # For soft update of target parameters
         "POLICY_FREQ": 2,  # Policy frequnecy
         "POP_SIZE": 1,  # Population size, 1 if we do not want to use Hyperparameter Optimization
-        "MAX_STEPS": 50000,
-        "TRAIN_STEPS": 500,
-        "LOAD_AGENT": True, # Load previous trained agent
+        "MAX_STEPS": 20000,
+        "TRAIN_STEPS": 200,
+        "LOAD_AGENT": False, # Load previous trained agent
         "SAVE_AGENT": True, # Save the agent
         "LOGGING": True,
-        "RESUME": True,
+        "RESUME": False,
         "RESUME_ID": "6v7adywb"
     }
     
     # Path & filename to save or load
-    path = "./models/intersection"
-    filename = "MADDPG_dense_trained_agent.pt"
+    path = "./models/custom"
+    filename = "MADDPG_single_agent.pt"
 
     # Number of parallel environment
     num_envs = 1
-    config = {
-    "id": "intersection-multi-agent-v1",
-    "observation": {
-        "type": "MultiAgentObservation",
-        "observation_config": {
-            "type": "Kinematics",
-            "vehicles_count": 10,
-            "features": ["presence", "x", "y", "vx", "vy", "cos_h", "sin_h"],
-            "features_range": {
-                "x": [-100, 100],
-                "y": [-100, 100],
-                "vx": [-20, 20],
-                "vy": [-20, 20]
-            },
-            "absolute": True
-        }
-    },
-    "action": {"type": "MultiAgentAction",
-               "action_config": {"type": "DiscreteAction"}},
-    "initial_vehicle_count": 20,
-    "controlled_vehicles": 1,
-    "policy_frequency": 15
-    }
 
+    '''
     config2 = {
         "id": "intersection-multi-agent-v1",
         "observation": {
@@ -121,38 +103,17 @@ if __name__ == '__main__':
         "controlled_vehicles": 1,
         "policy_frequency": 15
     }
-
-    config3 = {
-        "id": "highway-fast-v0",
-        "observation": {
-            "type": "MultiAgentObservation",
-            "observation_config": {
-                "type": "OccupancyGrid",
-                    "vehicles_count": 15,
-                    "features": ["presence", "x", "y", "vx", "vy", "cos_h", "sin_h"],
-                    "features_range": {
-                        "x": [-100, 100],
-                        "y": [-100, 100],
-                        "vx": [-20, 20],
-                        "vy": [-20, 20]
-                    },
-                    "grid_size": [[-27.5, 27.5], [-27.5, 27.5]],
-                    "grid_step": [5, 5],
-                    "absolute": False
-            }
-        },
-        "action": {"type": "MultiAgentAction",
-               "action_config": {"type": "DiscreteMetaAction"}},
-        "controlled_vehicles": 2
-    }
+    '''
     
 
     # Define the simple spread environment as a parallel environment
-    env = gym.make("intersection-multi-agent-v1", render_mode=None, config = config2)
-    print(env.unwrapped.config)
+    #env = gym.make("intersection-multi-agent-v1", render_mode=None, config = config2)
+    #print(env.unwrapped.config)
     #env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
+    env = CustomEnv()
     obs, info = env.reset(seed=42)
-    env.num_agents = env.unwrapped.config['controlled_vehicles']
+    #env.num_agents = env.unwrapped.config['controlled_vehicles']
+
     env.agents = [f'agent_{i}' for i in range(env.num_agents)]
     # Logger
     if INIT_HP["LOGGING"]:
@@ -176,8 +137,8 @@ if __name__ == '__main__':
 
     # Configure the multi-agent algo input arguments
     if NET_CONFIG["arch"] == "mlp":
-        print(obs[0].shape)
-        state_dim = [(obs[agent].flatten().shape[0], 1) for agent, _ in enumerate(env.agents)]
+        print(obs.shape)
+        state_dim = [(160, 1) for agent, _ in enumerate(env.agents)]
         print(state_dim)
         one_hot = False
     else:
@@ -186,7 +147,7 @@ if __name__ == '__main__':
         print(state_dim)
         one_hot = False
     try:
-        action_dim = [env.action_space[agent].n for agent, _ in enumerate(env.agents)]
+        action_dim = [env.action_space.n for agent, _ in enumerate(env.agents)]
         print(action_dim)
         INIT_HP["DISCRETE_ACTIONS"] = True
         INIT_HP["MAX_ACTION"] = None

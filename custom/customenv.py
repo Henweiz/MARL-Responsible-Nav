@@ -1,10 +1,13 @@
 import gymnasium as gym
 from gymnasium import spaces
-import GWorld
+
 import numpy as np
 import json
-import Agent
-import Responsibility
+from . import grid_world
+from . import custom_agent
+from custom.custom_agent import CustomAgent
+from . import Responsibility
+from custom.grid_world import GWorld
 # from stable_baselines3.common.env_checker import check_env
 import numpy as np
 rng = np.random.default_rng(seed=0)
@@ -16,12 +19,12 @@ scenario_name = 'GameMap'
 MdR4Agents_Default = 0 #Stay
 ExhaustiveActions = False
 Specific_MdR4Agents = [] #None
-Scenario = GWorld.LoadJsonScenario(scenario_name="GameMap")
-N_Agents = Scenario['N_Agents']
+Scenario = grid_world.LoadJsonScenario(scenario_name="GameMap")
+num_agents = Scenario['N_Agents']
 
-ActionNames, ActionMoves = GWorld.DefineActions()
+ActionNames, ActionMoves = custom_agent.DefineActions()
 
-print('N_Agents : ',N_Agents)
+print('N_Agents : ',num_agents)
 
 
 class CustomEnv(gym.Env):
@@ -37,6 +40,7 @@ class CustomEnv(gym.Env):
         # Example for using image as input:
         self.observation_space = spaces.Box(low=-1.0, high=255.0,
                                             shape=(10, 16), dtype=np.float64)
+        self.num_agents = 1
     
 
 
@@ -46,9 +50,9 @@ class CustomEnv(gym.Env):
 #         print('SpecificAction Inputs 4Agents :', self.SpecificAction4Agents)
 #         print('Actions chosen for Agents :',Action4Agents)
 
-        FeAR_vals,ValidMoves_MdR,ValidMoves_action1,ValidityOfMoves_Mdr,ValidityOfMoves_action1 =  GWorld.FeAR(self.World, Action4Agents, self.MdR4Agents) 
+        FeAR_vals,ValidMoves_MdR,ValidMoves_action1,ValidityOfMoves_Mdr,ValidityOfMoves_action1 =  Responsibility.FeAR(self.World, Action4Agents, self.MdR4Agents) 
         FeAL_vals, ValidMoves_moveDeRigueur_FeAL, ValidMoves_action_FeAL, \
-           ValidityOfMoves_Mdr_FeAL, ValidityOfMoves_action_FeAL =  GWorld.FeAL(self.World, Action4Agents, self.MdR4Agents)
+           ValidityOfMoves_Mdr_FeAL, ValidityOfMoves_action_FeAL =  Responsibility.FeAL(self.World, Action4Agents, self.MdR4Agents)
                 
         Action4Agents[0] = (0, action)
 #         print("Action4AGENTS: ----- ", Action4Agents)
@@ -105,10 +109,10 @@ class CustomEnv(gym.Env):
         for location in Scenario['AgentLocations']:
             self.AgentLocations.append(tuple(location))
 
-        if len(self.AgentLocations) < N_Agents:
+        if len(self.AgentLocations) < num_agents:
             [locX,locY] = np.where(self.Region==1)
 
-        LocIdxs = rng.choice(locX.shape[0], size=(N_Agents-len(self.AgentLocations)), replace=False, shuffle=False)
+        LocIdxs = rng.choice(locX.shape[0], size=(num_agents-len(self.AgentLocations)), replace=False, shuffle=False)
         LocIdxs.sort()
 
         for Idx in LocIdxs:
@@ -119,14 +123,14 @@ class CustomEnv(gym.Env):
         for location in self.AgentLocations:
             # Adding new Agents if Previous Agent was Added to the World
             if PreviousAgentAdded: 
-                Ag_i =  Agent()
+                Ag_i =  CustomAgent()
             PreviousAgentAdded = self.World.AddAgent(Ag_i,location, printStatus=False)
 
         PreviousAgentAdded = True
-        while len(self.World.AgentList) < N_Agents:
+        while len(self.World.AgentList) < num_agents:
             # Adding new Agents if Previous Agent was Added to the World
             if PreviousAgentAdded: 
-                Ag_i =  Agent()
+                Ag_i =  CustomAgent()
             Loc_i = (np.random.randint(self.Region.shape[0]),np.random.randint(self.Region.shape[1]))
             PreviousAgentAdded = self.World.AddAgent(Ag_i,Loc_i, printStatus=False)
 
@@ -159,9 +163,9 @@ class CustomEnv(gym.Env):
                 ListOfDirectionWeights[agentID] = directionweights4agents
 
         # Updating Agent Policies in World   
-        for ii,agent in enumerate(self.World.AgentList):
-            policy =  GWorld.GeneratePolicy(StepWeights=ListOfStepWeights[ii],DirectionWeights=ListOfDirectionWeights[ii])
-            agent.UpdateActionPolicy(policy)
+        for ii,ai in enumerate(self.World.AgentList):
+            policy = custom_agent.GeneratePolicy(StepWeights=ListOfStepWeights[ii],DirectionWeights=ListOfDirectionWeights[ii])
+            ai.UpdateActionPolicy(policy)
 
         #------------------------------------------------------------------------------------------------------------------
         #------------------------------------------------------------------------------------------------------------------

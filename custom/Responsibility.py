@@ -3,13 +3,14 @@ import numpy as np;
 np.random.seed(0)
 import copy
 from tqdm import tqdm
-import GWorld
-import Agent
+from . import grid_world
+from . import custom_agent
 
 from functools import lru_cache
 
 VerboseFlag = False
 EPS = 0.000001
+
 
 
 def CountValidMovesOfAffected(WorldIn, ActionID4Agents, AffectedID):
@@ -33,7 +34,7 @@ def CountValidMovesOfAffected_tuple(WorldIn, ActionID4Agents, AffectedID):
         agentIDs4swaps = [AffectedID]
         actionIDs4swaps = [AffectedActionID]
         # SwapActionID for Affected Agent
-        ActionID4Agents_inner = GWorld.SwapActionIDs4Agents(ActionID4Agents=ActionID4Agents_outer,
+        ActionID4Agents_inner = grid_world.SwapActionIDs4Agents(ActionID4Agents=ActionID4Agents_outer,
                                                             agentIDs4swaps=agentIDs4swaps,
                                                             actionIDs4swaps=actionIDs4swaps)
 
@@ -80,7 +81,7 @@ def FeAR(WorldIn, ActionID4Agents, MovesDeRigueur4Agents=[]):
     Validity_of_Moves_moveDeRigueur = np.zeros((len(FuncWorld.AgentList), len(FuncWorld.AgentList), max_n_actions))
     Validity_of_Moves_action = np.zeros((len(FuncWorld.AgentList), len(FuncWorld.AgentList), max_n_actions))
 
-    for ii in tqdm(range(len(FuncWorld.AgentList)), colour="red", ncols=100):  # Actors
+    for ii in tqdm(range(len(FuncWorld.AgentList)), colour="red", ncols=100, disable = True):  # Actors
         for jj in np.arange(len(FuncWorld.AgentList)):  # Affected
             if not (ii == jj):
 
@@ -88,13 +89,13 @@ def FeAR(WorldIn, ActionID4Agents, MovesDeRigueur4Agents=[]):
 
                 # Actor - Move de Rigueur
                 actionIDs4swaps = [MovesDeRigueur[ii]]
-                ActionID4Agents_ActorMoveDeRigueur = GWorld.SwapActionIDs4Agents(ActionID4Agents=ActionID4Agents,
+                ActionID4Agents_ActorMoveDeRigueur = grid_world.SwapActionIDs4Agents(ActionID4Agents=ActionID4Agents,
                                                                                  agentIDs4swaps=agentIDs4swaps,
                                                                                  actionIDs4swaps=actionIDs4swaps)
 
                 # Actor Moves
                 actionIDs4swaps = [ActionInputs[ii]]
-                ActionID4Agents_ActorMoves = GWorld.SwapActionIDs4Agents(ActionID4Agents=ActionID4Agents,
+                ActionID4Agents_ActorMoves = grid_world.SwapActionIDs4Agents(ActionID4Agents=ActionID4Agents,
                                                                          agentIDs4swaps=agentIDs4swaps,
                                                                          actionIDs4swaps=actionIDs4swaps)
 
@@ -159,20 +160,20 @@ def FeAR_4_one_actor(WorldIn, ActionID4Agents, MovesDeRigueur4Agents=[], actor_i
     Validity_of_Moves_action = np.zeros((len(FuncWorld.AgentList), len(FuncWorld.AgentList), max_n_actions))
 
     ii = actor_ii
-    for jj in tqdm(range(len(FuncWorld.AgentList)), colour="red", ncols=100):  # Affected
+    for jj in tqdm(range(len(FuncWorld.AgentList)), colour="red", ncols=100, disable = True):  # Affected
         if not (ii == jj):
 
             agentIDs4swaps = [ii]
 
             # Actor - Move de Rigueur
             actionIDs4swaps = [MovesDeRigueur[ii]]
-            ActionID4Agents_ActorMoveDeRigueur = GWorld.SwapActionIDs4Agents(ActionID4Agents=ActionID4Agents,
+            ActionID4Agents_ActorMoveDeRigueur = grid_world.SwapActionIDs4Agents(ActionID4Agents=ActionID4Agents,
                                                                              agentIDs4swaps=agentIDs4swaps,
                                                                              actionIDs4swaps=actionIDs4swaps)
 
             # Actor Moves
             actionIDs4swaps = [ActionInputs[ii]]
-            ActionID4Agents_ActorMoves = GWorld.SwapActionIDs4Agents(ActionID4Agents=ActionID4Agents,
+            ActionID4Agents_ActorMoves = grid_world.SwapActionIDs4Agents(ActionID4Agents=ActionID4Agents,
                                                                      agentIDs4swaps=agentIDs4swaps,
                                                                      actionIDs4swaps=actionIDs4swaps)
 
@@ -238,7 +239,7 @@ def FeAL(WorldIn, ActionID4Agents, MovesDeRigueur4Agents=[]):
     Validity_of_Moves_MdR_FeAL = np.zeros((len(FuncWorld.AgentList), max_n_actions))
     Validity_of_Moves_action_FeAL = np.zeros((len(FuncWorld.AgentList), max_n_actions))
 
-    for ii in tqdm(range(len(FuncWorld.AgentList)), colour="red", ncols=100):  # Affected
+    for ii in tqdm(range(len(FuncWorld.AgentList)), colour="red", ncols=100, disable = True):  # Affected
 
         agentid_list = list(range(len(FuncWorld.AgentList)))
         agentid_list.pop(ii)
@@ -252,7 +253,7 @@ def FeAL(WorldIn, ActionID4Agents, MovesDeRigueur4Agents=[]):
             print("FuncWorld.AgentList,MovesDeRigueur",FuncWorld.AgentList,MovesDeRigueur)
             print("agentIDs4swaps,actionIDs4swaps : ",agentIDs4swaps,actionIDs4swaps)
 
-        ActionID4Agents_OthersMoveDeRigueur = GWorld.SwapActionIDs4Agents(ActionID4Agents=ActionID4Agents,
+        ActionID4Agents_OthersMoveDeRigueur = grid_world.SwapActionIDs4Agents(ActionID4Agents=ActionID4Agents,
                                                                          agentIDs4swaps=agentIDs4swaps,
                                                                          actionIDs4swaps=actionIDs4swaps)
 
@@ -264,7 +265,7 @@ def FeAL(WorldIn, ActionID4Agents, MovesDeRigueur4Agents=[]):
             print("FuncWorld.AgentList,MovesDeRigueur",FuncWorld.AgentList,ActionInputs)
             print("agentIDs4swaps,actionIDs4swaps : ",agentIDs4swaps,actionIDs4swaps)
 
-        ActionID4Agents_OthersMove = GWorld.SwapActionIDs4Agents(ActionID4Agents=ActionID4Agents,
+        ActionID4Agents_OthersMove = grid_world.SwapActionIDs4Agents(ActionID4Agents=ActionID4Agents,
                                                                  agentIDs4swaps=agentIDs4swaps,
                                                                  actionIDs4swaps=actionIDs4swaps)
 
