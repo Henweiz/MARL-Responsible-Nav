@@ -53,7 +53,7 @@ if __name__ == '__main__':
     
     # Path & filename to save or load
     path = "./models/intersection"
-    filename = "MADDPG_trained_agent.pt"
+    filename = "MADDPG_trained_agent_w_fear.pt"
 
     scores = []
     losses = []
