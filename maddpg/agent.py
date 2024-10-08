@@ -155,6 +155,7 @@ class MADDPGAgent:
 
                 #Get MdRs
                 MdR = cal_MdR(env.unwrapped.road.vehicles)
+                print("MdR=", MdR)
                 
                 #Deepcopy current env
                 before_action_env = copy.deepcopy(env)
@@ -165,7 +166,7 @@ class MADDPGAgent:
                 next_state, reward, termination, truncation, info = env.step(action_tuple)
                 
                 #Calculate FeAR
-                FeAR = np.zeros(shape = (len(env.unwrapped.road.vehicles),len(env.unwrapped.road.vehicles)))
+                FeAR = np.zeros(shape = (self.INIT_HP["N_AGENTS"],len(env.unwrapped.road.vehicles)))
 
                 FeAR_weight = -5.0
 
@@ -173,10 +174,10 @@ class MADDPGAgent:
                     for j in range(len(env.unwrapped.road.vehicles) - 1):
                         FeAR[i,j] += cal_FeAR_ij(i, j, info['action'], MdR, before_action_env)
                         
-                print(f'{FeAR}=')
-                print(f'{i}=')
-                print(f'{j}=')
-                reward += FeAR_weight * FeAR.sum()
+                print("FeAR=", FeAR)
+
+                reward += FeAR_weight * np.sum(FeAR, axis=1)
+                print("reward=", reward)
 
                 del before_action_env
                 
@@ -223,6 +224,7 @@ class MADDPGAgent:
                         # Learn according to agent's RL algorithm
                         loss = agent.learn(experiences)
                         self.loss.append(loss)
+                        print("loss=", loss)
                 # Handle num_envs > learn step; learn multiple times per step in env
                 elif (
                     len(self.memory) >= agent.batch_size and self.memory.counter > learning_delay
@@ -233,6 +235,7 @@ class MADDPGAgent:
                         # Learn according to agent's RL algorithm
                         loss = agent.learn(experiences)
                         self.loss.append(loss)
+                        print("loss=", loss)
 
                 state = next_state
 

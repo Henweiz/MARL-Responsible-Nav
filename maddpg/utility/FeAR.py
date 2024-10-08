@@ -12,7 +12,7 @@ Vector = Union[np.ndarray, Sequence[float]]
 
 
 
-def project_polygon(polygon: Vector, axis: Vector) -> tuple[float, float]:
+def project_polygon(polygon: Vector, axis: Vector):
     min_p, max_p = None, None
     for p in polygon:
         projected = p.dot(axis)
@@ -104,7 +104,6 @@ def count_FeasibleActions(i, j, action, env, DiscreteMetaAction={0: "SLOWER", 1:
 
     return: the number of feasible actions of agent others given the movement of agent ego, int
     '''
-
     
     if type(env.unwrapped.road.vehicles[j]) != type(env.unwrapped.controlled_vehicles[0]):
 
@@ -156,7 +155,7 @@ def cal_FeAR_ij(i, j, action, MdR, before_action_env, epsilon = 1e-6):
     '''
 
     action = list(action)
-    agent_i = before_action_env.unwrapped.road.controlled_vehicles[i]
+    agent_i = before_action_env.unwrapped.controlled_vehicles[i]
     agent_j = before_action_env.unwrapped.road.vehicles[j]
 
     if agent_i == agent_j or action[i] == MdR[i]:
@@ -168,6 +167,9 @@ def cal_FeAR_ij(i, j, action, MdR, before_action_env, epsilon = 1e-6):
             
         n_FeasibleActions_MdRi_j = count_FeasibleActions(i, j, action_MdRi, before_action_env)
         n_FeasibleActions_Actioni_j = count_FeasibleActions(i, j, action, before_action_env)
+
+        #print("n_FeasibleActions_MdRi_j=", n_FeasibleActions_MdRi_j)
+        #print("n_FeasibleActions_Actioni_j", n_FeasibleActions_Actioni_j)
 
         FeAR_ij = np.clip( ( (n_FeasibleActions_MdRi_j - n_FeasibleActions_Actioni_j) / (n_FeasibleActions_MdRi_j + epsilon) ), -1, 1)
 

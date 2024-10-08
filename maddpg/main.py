@@ -75,10 +75,10 @@ if __name__ == '__main__':
     },
     "action": {"type": "MultiAgentAction",
                "action_config": {"type": "DiscreteMetaAction","longitudinal": True,
-                "lateral": False}
+                "lateral": False, "target_speed":[0,4.5,9]}
                },
     "initial_vehicle_count": 15,
-    "controlled_vehicles": 2
+    "controlled_vehicles": 4
     }
 
     # Define the simple spread environment as a parallel environment
