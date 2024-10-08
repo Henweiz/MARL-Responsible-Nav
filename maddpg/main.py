@@ -16,6 +16,7 @@ from agilerl.wrappers.pettingzoo_wrappers import PettingZooVectorizationParallel
 
 from agent import MADDPGAgent
 from log import Logger
+import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
 
@@ -54,6 +55,10 @@ if __name__ == '__main__':
     path = "./models/intersection"
     filename = "MADDPG_trained_agent.pt"
 
+    scores = []
+    losses = []
+    steps = []
+    
     # Number of parallel environment
     num_envs = 1
     config = {
@@ -171,9 +176,28 @@ if __name__ == '__main__':
         print(f"Scores: {mean_scores}")
         print(f"Loss: {agents.total_loss()}")
         #print(f'Fitnesses: {["%.2f"%fitness for fitness in fitnesses]}')
+        scores.append(mean_scores)
+        losses.append(agents.total_loss())
+        steps.append(agents.agents_steps())
+
     
     pbar.close()
     env.close()
     if INIT_HP["SAVE_AGENT"]:
         agents.save_checkpoint(path, filename)
         print("Succesfully saved the agent")
+    
+    fig, (ax1, ax2, ax3) = plt.subplots(3)
+    fig.suptitle('Training results')
+    ax1.plot(scores)
+    ax2.plot(losses)
+    ax3.plot(steps)
+    ax1.set_ylabel('Scores')
+    ax2.set_ylabel('Loss')
+    ax3.set_ylabel('Steps')
+    ax3.set_xlabel('episodes')
+    ax1.grid()
+    ax2.grid()
+    ax3.grid()
+    plt.savefig('figures/train_res.pdf', format = 'pdf')
+
