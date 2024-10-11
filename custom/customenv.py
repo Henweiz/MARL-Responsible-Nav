@@ -68,7 +68,7 @@ class CustomEnv(gym.Env):
         observation = self.World.WorldState
         observation[9,15] += 10
         
-        self.episode_reward += reward
+        
         self.episode_length += 1
 
         if agent_crashes[0]:
@@ -78,6 +78,8 @@ class CustomEnv(gym.Env):
         if len(apples_caught) == 1:
             reward = 10
             truncated = True
+
+        self.episode_reward += reward    
         
         if terminated or truncated:
             info = {
