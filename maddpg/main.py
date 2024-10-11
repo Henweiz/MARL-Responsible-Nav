@@ -23,16 +23,27 @@ if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Define the network configuration
+    '''
     NET_CONFIG = {
         "arch": "mlp",  # Network architecture
         "hidden_size": [64, 64],  # Actor hidden size
     }
+    '''
+    NET_CONFIG = {
+        "arch": "cnn",  # Network architecture
+        "hidden_size": [64, 64],  # Actor hidden size
+        "channel_size": [32, 32],
+        "kernel_size": [2, 2],
+        "stride_size": [2, 2]
+    }
+    
+   
 
     # Define the initial hyperparameters
     INIT_HP = {
         # Swap image channels dimension from last to first [H, W, C] -> [C, H, W]
-        "CHANNELS_LAST": False,
-        "BATCH_SIZE": 32,  # Batch size
+        "CHANNELS_LAST": True,
+        "BATCH_SIZE": 64,  # Batch size
         "O_U_NOISE": True,  # Ornstein Uhlenbeck action noise
         "EXPL_NOISE": 0.1,  # Action noise scale
         "MEAN_NOISE": 0.0,  # Mean action noise
@@ -40,15 +51,19 @@ if __name__ == '__main__':
         "DT": 0.01,  # Timestep for OU noise
         "LR_ACTOR": 0.001,  # Actor learning rate
         "LR_CRITIC": 0.001,  # Critic learning rate
-        "GAMMA": 0.98,  # Discount factor
-        "MEMORY_SIZE": 100000,  # Max memory buffer size
-        "LEARN_STEP": 20,  # Learning frequency
+        "GAMMA": 0.99,  # Discount factor
+        "MEMORY_SIZE": 500000,  # Max memory buffer size
+        "LEARN_STEP": 50,  # Learning frequency
         "TAU": 0.01,  # For soft update of target parameters
         "POLICY_FREQ": 2,  # Policy frequnecy
         "POP_SIZE": 1,  # Population size, 1 if we do not want to use Hyperparameter Optimization
+        "MAX_STEPS": 50000,
+        "TRAIN_STEPS": 500,
         "LOAD_AGENT": False, # Load previous trained agent
         "SAVE_AGENT": True, # Save the agent
-        "LOGGING": False
+        "LOGGING": True,
+        "RESUME": True,
+        "RESUME_ID": "6v7adywb"
     }
     
     # Path & filename to save or load
@@ -67,7 +82,7 @@ if __name__ == '__main__':
         "type": "MultiAgentObservation",
         "observation_config": {
             "type": "Kinematics",
-            "vehicles_count": 15,
+            "vehicles_count": 10,
             "features": ["presence", "x", "y", "vx", "vy", "cos_h", "sin_h"],
             "features_range": {
                 "x": [-100, 100],
@@ -79,15 +94,74 @@ if __name__ == '__main__':
         }
     },
     "action": {"type": "MultiAgentAction",
+               "action_config": {"type": "DiscreteAction"}},
+    "initial_vehicle_count": 20,
+    "controlled_vehicles": 1,
+    "policy_frequency": 15
+    }
+
+    config2 = {
+        "id": "intersection-multi-agent-v1",
+        "observation": {
+            "type": "MultiAgentObservation",
+            "observation_config": {
+                "type": "OccupancyGrid",
+                    "vehicles_count": 15,
+                    "features": ["presence", "x", "y", "vx", "vy", "cos_h", "sin_h"],
+                    "features_range": {
+                        "x": [-100, 100],
+                        "y": [-100, 100],
+                        "vx": [-20, 20],
+                        "vy": [-20, 20]
+                    },
+                    "grid_size": [[-32, 32], [-32, 32]],
+                    "grid_step": [2, 2],
+                    "absolute": False
+            }
+        },
+        "action": {"type": "MultiAgentAction",
+               "action_config": {"type": "DiscreteMetaAction",
+                                 "lateral": False}},
+        "initial_vehicle_count": 20,
+        "controlled_vehicles": 1,
+        "policy_frequency": 15
+    }
+
+    config3 = {
+        "id": "highway-fast-v0",
+        "observation": {
+            "type": "MultiAgentObservation",
+            "observation_config": {
+                "type": "OccupancyGrid",
+                    "vehicles_count": 15,
+                    "features": ["presence", "x", "y", "vx", "vy", "cos_h", "sin_h"],
+                    "features_range": {
+                        "x": [-100, 100],
+                        "y": [-100, 100],
+                        "vx": [-20, 20],
+                        "vy": [-20, 20]
+                    },
+                    "grid_size": [[-27.5, 27.5], [-27.5, 27.5]],
+                    "grid_step": [5, 5],
+                    "absolute": False
+            }
+        },
+        "action": {"type": "MultiAgentAction",
+               "action_config": {"type": "DiscreteMetaAction"}},
+        "controlled_vehicles": 2
+        }
+    },
+    "action": {"type": "MultiAgentAction",
                "action_config": {"type": "DiscreteMetaAction","longitudinal": True,
                 "lateral": False, "target_speed":[0,4.5,9]}
                },
     "initial_vehicle_count": 15,
     "controlled_vehicles": 4
     }
+    
 
     # Define the simple spread environment as a parallel environment
-    env = gym.make("intersection-multi-agent-v1", render_mode=None, config = config)
+    env = gym.make("intersection-multi-agent-v1", render_mode=None, config = config2)
     print(env.unwrapped.config)
     #env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
     obs, info = env.reset(seed=42)
@@ -108,17 +182,25 @@ if __name__ == '__main__':
             "Tau": INIT_HP["TAU"],
             "Population size": INIT_HP["POP_SIZE"]
         }
-        logger = Logger(filename, config)
+        if INIT_HP["RESUME"]:
+            logger = Logger(filename, config, id=INIT_HP["RESUME_ID"])
+        else:
+            logger = Logger(filename, config)
 
     # Configure the multi-agent algo input arguments
-    try:
+    if NET_CONFIG["arch"] == "mlp":
+        print(obs[0].shape)
         state_dim = [(obs[agent].flatten().shape[0], 1) for agent, _ in enumerate(env.agents)]
+        print(state_dim)
         one_hot = False
-    except Exception:
-        state_dim = [env.observation_space(agent).shape for agent in env.agents]
+    else:
+        state_dim = [obs[agent].shape for agent, _ in enumerate(env.agents)]
+        #state_dim = [np.moveaxis(np.zeros(state_dim[agent]), [-1], [-3]).shape for agent, _ in enumerate(env.agents)]
+        print(state_dim)
         one_hot = False
     try:
         action_dim = [env.action_space[agent].n for agent, _ in enumerate(env.agents)]
+        print(action_dim)
         INIT_HP["DISCRETE_ACTIONS"] = True
         INIT_HP["MAX_ACTION"] = None
         INIT_HP["MIN_ACTION"] = None
@@ -141,14 +223,13 @@ if __name__ == '__main__':
     agents = MADDPGAgent(state_dim, action_dim, one_hot, NET_CONFIG, INIT_HP, num_envs, device, HPO=True)
 
     if INIT_HP["LOAD_AGENT"]:
-        load_path = os.path.join(path, filename)
-        agents.load_checkpoint(load_path)
+        agents.load_checkpoint(path, filename)
 
     # Define training loop parameters
-    max_steps = 60000  # Max steps
+    max_steps = INIT_HP["MAX_STEPS"]  # Max steps
     learning_delay = 0  # Steps before starting learning
 
-    evo_steps = 100  # Evolution frequency
+    evo_steps = INIT_HP["TRAIN_STEPS"]  # Evolution frequency
     eval_steps = None  # Evaluation steps per episode - go until done
     eval_loop = 1  # Number of evaluation episodes
 
@@ -169,7 +250,7 @@ if __name__ == '__main__':
         total_steps += steps
         pbar.update(steps // len(agents.pop))
         if INIT_HP["LOGGING"]:
-            logger.log(np.mean(mean_scores), agents.total_loss())
+            logger.log(np.mean(mean_scores), agents.total_loss(), agents.agents_steps()[0])
 
         print(f"--- Global steps {total_steps} ---")
         print(f"Steps {agents.agents_steps()}")

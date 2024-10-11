@@ -31,7 +31,7 @@ if __name__ == "__main__":
     
     # Path & filename to save or load
     path = "./models/intersection"
-    filename = "MADDPG_intersection_trained_agent.pt"
+    filename = "MADDPG_dense_trained_agent.pt"
 
     # Number of parallel environment
     num_envs = 1
@@ -42,7 +42,7 @@ if __name__ == "__main__":
         "type": "MultiAgentObservation",
         "observation_config": {
             "type": "Kinematics",
-            "vehicles_count": 15,
+            "vehicles_count": 10,
             "features": ["presence", "x", "y", "vx", "vy", "cos_h", "sin_h"],
             "features_range": {
                 "x": [-100, 100],
@@ -54,25 +54,92 @@ if __name__ == "__main__":
         }
     },
     "action": {"type": "MultiAgentAction",
+               "action_config": {"type": "DiscreteAction"}},
+    "initial_vehicle_count": 20,
+    "controlled_vehicles": 1,
+    "policy_frequency": 15
+    }
+    
+    config2 = {
+        "id": "intersection-multi-agent-v1",
+        "observation": {
+            "type": "MultiAgentObservation",
+            "observation_config": {
+                "type": "OccupancyGrid",
+                    "vehicles_count": 15,
+                    "features": ["presence", "x", "y", "vx", "vy", "cos_h", "sin_h"],
+                    "features_range": {
+                        "x": [-100, 100],
+                        "y": [-100, 100],
+                        "vx": [-20, 20],
+                        "vy": [-20, 20]
+                    },
+                    "grid_size": [[-27.5, 27.5], [-27.5, 27.5]],
+                    "grid_step": [5, 5],
+                    "absolute": False
+            }
+        },
+        "action": {"type": "MultiAgentAction",
                "action_config": {"type": "DiscreteMetaAction"}},
-    "initial_vehicle_count": 10,
-    "controlled_vehicles": 2
+        "initial_vehicle_count": 8,
+        "controlled_vehicles": 2
+    }
+
+    config3 = {
+        "id": "intersection-multi-agent-v1",
+        "observation": {
+            "type": "MultiAgentObservation",
+            "observation_config": {
+                "type": "OccupancyGrid",
+                    "vehicles_count": 15,
+                    "features": ["presence", "x", "y", "vx", "vy", "cos_h", "sin_h"],
+                    "features_range": {
+                        "x": [-100, 100],
+                        "y": [-100, 100],
+                        "vx": [-20, 20],
+                        "vy": [-20, 20]
+                    },
+                    "grid_size": [[-32, 32], [-32, 32]],
+                    "grid_step": [2, 2],
+                    "absolute": False
+            }
+        },
+        "action": {"type": "MultiAgentAction",
+               "action_config": {"type": "DiscreteMetaAction",
+                                 "lateral": False}},
+        "initial_vehicle_count": 20,
+        "controlled_vehicles": 1,
+        "policy_frequency": 15
     }
 
     # Define the simple spread environment as a parallel environment
-    env = gym.make("intersection-multi-agent-v1", render_mode="human", config = config)
+    env = gym.make("intersection-multi-agent-v1", render_mode="human", config = config3)
     print(env.unwrapped.config)
     #env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
     obs, info = env.reset(seed=42)
     env.num_agents = env.unwrapped.config['controlled_vehicles']
     env.agents = [f'agent_{i}' for i in range(env.num_agents)]
+    net = "cnn"
 
     # Configure the multi-agent algo input arguments
     # Configure the multi-agent algo input arguments
-    state_dim = [(obs[agent].flatten().shape[0], 1) for agent, _ in enumerate(env.agents)]
-    one_hot = False
+    # Configure the multi-agent algo input arguments
+    if net == "mlp":
+        print(obs[0].shape)
+        state_dim = [(obs[agent].flatten().shape[0], 1) for agent, _ in enumerate(env.agents)]
+        print(state_dim)
+        one_hot = False
+    else:
+        state_dim = [obs[agent].shape for agent, _ in enumerate(env.agents)]
+        #state_dim = [np.moveaxis(np.zeros(state_dim[agent]), [-1], [-3]).shape for agent, _ in enumerate(env.agents)]
+        print(state_dim)
+        state_dim = [
+            (state_dim[2], state_dim[0], state_dim[1]) for state_dim in state_dim
+        ]
+        one_hot = False
 
     action_dim = [env.action_space[agent].n for agent, _ in enumerate(env.agents)]
+
 
 
     # Append number of agents and agent IDs to the initial hyperparameter dictionary
@@ -93,7 +160,7 @@ if __name__ == "__main__":
     )
 
     # Load the previous trained agent.
-    path = "./models/intersection/MADDPG_trained_agent.pt"
+    path = os.path.join(path, filename)
     agent.load_checkpoint(path)
 
 
@@ -101,7 +168,7 @@ if __name__ == "__main__":
     #    env, video_folder="intersection_maddpg/videos", episode_trigger=lambda e: True
     #)
     #env.unwrapped.set_record_video_wrapper(env)
-    env.unwrapped.config["simulation_frequency"] = 60  # Higher FPS for rendering
+    env.unwrapped.config["simulation_frequency"] = 15  # Higher FPS for rendering
 
     for videos in range(10):
         done = truncated = False
@@ -109,12 +176,20 @@ if __name__ == "__main__":
         while not (done or truncated):
             #print("step")
             agent_mask = info["agent_mask"] if "agent_mask" in info.keys() else None
-            state = [x.flatten() for x in state]
-            state_dict = make_dict(state, n_agents)
+            if net == "mlp":
+                state = [x.flatten() for x in state]
+                state_dict = make_dict(state, n_agents)
+            else:
+                state_dict = make_dict(state, n_agents)
+                state_dict = {
+                        agent_id: np.moveaxis(s, [-1], [-3])
+                        for agent_id, s in state_dict.items()
+                }
+            
                 # Get next action from agent
             cont_actions, discrete_action = agent.get_action(
                 states=state_dict,
-                training=False,
+                training=True,
                 agent_mask=agent_mask
             )
             if agent.discrete_actions:
