@@ -60,9 +60,9 @@ if __name__ == '__main__':
         "MAX_STEPS": 50000,
         "TRAIN_STEPS": 500,
         "LOAD_AGENT": False, # Load previous trained agent
-        "SAVE_AGENT": True, # Save the agent
-        "LOGGING": True,
-        "RESUME": True,
+        "SAVE_AGENT": False, # Save the agent
+        "LOGGING": False,
+        "RESUME": False,
         "RESUME_ID": "6v7adywb"
     }
     
@@ -120,43 +120,11 @@ if __name__ == '__main__':
             }
         },
         "action": {"type": "MultiAgentAction",
-               "action_config": {"type": "DiscreteMetaAction",
-                                 "lateral": False}},
-        "initial_vehicle_count": 20,
-        "controlled_vehicles": 1,
-        "policy_frequency": 15
-    }
-
-    config3 = {
-        "id": "highway-fast-v0",
-        "observation": {
-            "type": "MultiAgentObservation",
-            "observation_config": {
-                "type": "OccupancyGrid",
-                    "vehicles_count": 15,
-                    "features": ["presence", "x", "y", "vx", "vy", "cos_h", "sin_h"],
-                    "features_range": {
-                        "x": [-100, 100],
-                        "y": [-100, 100],
-                        "vx": [-20, 20],
-                        "vy": [-20, 20]
-                    },
-                    "grid_size": [[-27.5, 27.5], [-27.5, 27.5]],
-                    "grid_step": [5, 5],
-                    "absolute": False
-            }
-        },
-        "action": {"type": "MultiAgentAction",
-               "action_config": {"type": "DiscreteMetaAction"}},
-        "controlled_vehicles": 2
-        }
-    },
-    "action": {"type": "MultiAgentAction",
-               "action_config": {"type": "DiscreteMetaAction","longitudinal": True,
-                "lateral": False, "target_speed":[0,4.5,9]}
-               },
-    "initial_vehicle_count": 15,
-    "controlled_vehicles": 4
+                "action_config": {"type": "DiscreteMetaAction","longitudinal": True,
+                    "lateral": False, "target_speed":[0,4.5,9]}
+                },
+        "initial_vehicle_count": 15,
+        "controlled_vehicles": 4
     }
     
 
