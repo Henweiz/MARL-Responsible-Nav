@@ -249,6 +249,8 @@ class MADDPGAgent:
                         state, info = env.reset()
                 
                 agent.reset_action_noise(reset_noise_indices)
+                if all(term_array) or truncation:
+                    break
                 
 
             agent.steps[-1] += steps
@@ -309,8 +311,10 @@ class MADDPGAgent:
     
     def total_loss(self):
         # Get the last step (last dictionary in the list)
-        last_step = self.loss[-1]
-        
+        try:
+            last_step = self.loss[-1]
+        except:
+            return 0
         # Calculate the total loss
         total_loss = sum(loss for loss, _ in last_step.values())
         return total_loss

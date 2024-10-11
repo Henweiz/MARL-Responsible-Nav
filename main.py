@@ -35,8 +35,8 @@ if __name__ == '__main__':
         "arch": "cnn",  # Network architecture
         "hidden_size": [64, 64],  # Actor hidden size
         "channel_size": [32, 32],
-        "kernel_size": [2, 2],
-        "stride_size": [2, 2]
+        "kernel_size": [3, 3],
+        "stride_size": [1, 1]
     }
     '''
    
@@ -46,7 +46,7 @@ if __name__ == '__main__':
         # Swap image channels dimension from last to first [H, W, C] -> [C, H, W]
         "CUSTOM_ENV": True,
         "CHANNELS_LAST": False,
-        "BATCH_SIZE": 64,  # Batch size
+        "BATCH_SIZE": 32,  # Batch size
         "O_U_NOISE": True,  # Ornstein Uhlenbeck action noise
         "EXPL_NOISE": 0.1,  # Action noise scale
         "MEAN_NOISE": 0.0,  # Mean action noise
@@ -56,15 +56,15 @@ if __name__ == '__main__':
         "LR_CRITIC": 0.001,  # Critic learning rate
         "GAMMA": 0.99,  # Discount factor
         "MEMORY_SIZE": 200000,  # Max memory buffer size
-        "LEARN_STEP": 20,  # Learning frequency
+        "LEARN_STEP": 10,  # Learning frequency
         "TAU": 0.01,  # For soft update of target parameters
-        "POLICY_FREQ": 2,  # Policy frequnecy
+        "POLICY_FREQ": 1,  # Policy frequnecy
         "POP_SIZE": 1,  # Population size, 1 if we do not want to use Hyperparameter Optimization
-        "MAX_STEPS": 20000,
-        "TRAIN_STEPS": 200,
+        "MAX_EPISODES": 1,
+        "TRAIN_STEPS": 1,
         "LOAD_AGENT": False, # Load previous trained agent
-        "SAVE_AGENT": True, # Save the agent
-        "LOGGING": True,
+        "SAVE_AGENT": False, # Save the agent
+        "LOGGING": False,
         "RESUME": False,
         "RESUME_ID": "6v7adywb"
     }
@@ -174,7 +174,7 @@ if __name__ == '__main__':
         agents.load_checkpoint(path, filename)
 
     # Define training loop parameters
-    max_steps = INIT_HP["MAX_STEPS"]  # Max steps
+    episodes = INIT_HP["MAX_EPISODES"]  # Max steps
     learning_delay = 0  # Steps before starting learning
 
     evo_steps = INIT_HP["TRAIN_STEPS"]  # Evolution frequency
@@ -186,8 +186,8 @@ if __name__ == '__main__':
 
     # TRAINING LOOP
     print("Training...")
-    pbar = trange(max_steps - agents.agents_steps()[-1], unit="step")
-    while not agents.reached_max_steps(max_steps):
+    pbar = trange(episodes, unit="episode")
+    for i in range(episodes):
         steps, pop_episode_scores = agents.train(num_envs, evo_steps, learning_delay, env)
         #fitnesses = agents.evaluate_agent(env, eval_steps)
         mean_scores = [
@@ -196,11 +196,11 @@ if __name__ == '__main__':
         ]
 
         total_steps += steps
-        pbar.update(steps // len(agents.pop))
+        pbar.update(1)
         if INIT_HP["LOGGING"]:
             logger.log(np.mean(mean_scores), agents.total_loss(), agents.agents_steps()[0])
 
-        print(f"--- Global steps {total_steps} ---")
+        print(f"--- Episode: {i} ---")
         print(f"Steps {agents.agents_steps()}")
         print(f"Scores: {mean_scores}")
         print(f"Loss: {agents.total_loss()}")
@@ -211,3 +211,7 @@ if __name__ == '__main__':
     if INIT_HP["SAVE_AGENT"]:
         agents.save_checkpoint(path, filename)
         print("Succesfully saved the agent")
+
+def addDim(arr):
+    arr = arr[:, :, np.newaxis]
+    return arr
