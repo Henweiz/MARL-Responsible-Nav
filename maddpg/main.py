@@ -43,7 +43,7 @@ if __name__ == '__main__':
     INIT_HP = {
         # Swap image channels dimension from last to first [H, W, C] -> [C, H, W]
         "CHANNELS_LAST": True,
-        "BATCH_SIZE": 64,  # Batch size
+        "BATCH_SIZE": 128,  # Batch size
         "O_U_NOISE": True,  # Ornstein Uhlenbeck action noise
         "EXPL_NOISE": 0.1,  # Action noise scale
         "MEAN_NOISE": 0.0,  # Mean action noise
@@ -52,7 +52,7 @@ if __name__ == '__main__':
         "LR_ACTOR": 0.001,  # Actor learning rate
         "LR_CRITIC": 0.001,  # Critic learning rate
         "GAMMA": 0.99,  # Discount factor
-        "MEMORY_SIZE": 500000,  # Max memory buffer size
+        "MEMORY_SIZE": 800000,  # Max memory buffer size
         "LEARN_STEP": 50,  # Learning frequency
         "TAU": 0.01,  # For soft update of target parameters
         "POLICY_FREQ": 2,  # Policy frequnecy
@@ -64,15 +64,15 @@ if __name__ == '__main__':
         "LOGGING": False,
         "RESUME": False,
         "RESUME_ID": "6v7adywb"
+        "WITH_FEAR": True
     }
     
     # Path & filename to save or load
     path = "./models/intersection"
-    filename = "MADDPG_trained_agent_w_fear.pt"
+    filename = "MADDPG_trained_4agent3000step_wFeAR.pt"
 
     scores = []
     losses = []
-    steps = []
     
     # Number of parallel environment
     num_envs = 1
@@ -94,10 +94,12 @@ if __name__ == '__main__':
         }
     },
     "action": {"type": "MultiAgentAction",
-               "action_config": {"type": "DiscreteAction"}},
-    "initial_vehicle_count": 20,
-    "controlled_vehicles": 1,
-    "policy_frequency": 15
+               "action_config": {"type": "DiscreteMetaAction","longitudinal": True,
+                "lateral": False, "target_speed":[0,4.5,9]}
+               },
+    "initial_vehicle_count": 10,
+    "controlled_vehicles": 4,
+    "collision_reward": -10
     }
 
     config2 = {
@@ -119,12 +121,13 @@ if __name__ == '__main__':
                     "absolute": False
             }
         },
-        "action": {"type": "MultiAgentAction",
-                "action_config": {"type": "DiscreteMetaAction","longitudinal": True,
-                    "lateral": False, "target_speed":[0,4.5,9]}
-                },
-        "initial_vehicle_count": 15,
-        "controlled_vehicles": 4
+         "action": {"type": "MultiAgentAction",
+               "action_config": {"type": "DiscreteMetaAction","longitudinal": True,
+                "lateral": False, "target_speed":[0,4.5,9]}
+               },
+        "initial_vehicle_count": 10,
+        "controlled_vehicles": 4,
+        "collision_reward": -10
     }
     
 
@@ -208,7 +211,7 @@ if __name__ == '__main__':
     print("Training...")
     pbar = trange(max_steps - agents.agents_steps()[-1], unit="step")
     while not agents.reached_max_steps(max_steps):
-        steps, pop_episode_scores = agents.train(num_envs, evo_steps, learning_delay, env)
+        steps, pop_episode_scores = agents.train(num_envs, evo_steps, learning_delay, env, with_FeAR=INIT_HP["WITH_FEAR"])
         #fitnesses = agents.evaluate_agent(env, eval_steps)
         mean_scores = [
             np.mean(episode_scores) if len(episode_scores) > 0 else 0.0
@@ -227,7 +230,6 @@ if __name__ == '__main__':
         #print(f'Fitnesses: {["%.2f"%fitness for fitness in fitnesses]}')
         scores.append(mean_scores)
         losses.append(agents.total_loss())
-        steps.append(agents.agents_steps())
 
     
     pbar.close()
@@ -236,17 +238,17 @@ if __name__ == '__main__':
         agents.save_checkpoint(path, filename)
         print("Succesfully saved the agent")
     
-    fig, (ax1, ax2, ax3) = plt.subplots(3)
+    fig, (ax1, ax2) = plt.subplots(2)
+    x_axis = np.arange(0, INIT_HP["MAX_STEPS"], INIT_HP["MAX_STEPS"]//10)
     fig.suptitle('Training results')
     ax1.plot(scores)
     ax2.plot(losses)
-    ax3.plot(steps)
+    ax1.set_xticks(x_axis) 
+    ax2.set_xticks(x_axis)
     ax1.set_ylabel('Scores')
     ax2.set_ylabel('Loss')
-    ax3.set_ylabel('Steps')
-    ax3.set_xlabel('episodes')
+    ax2.set_xlabel('steps')
     ax1.grid()
     ax2.grid()
-    ax3.grid()
-    plt.savefig('figures/train_res.pdf', format = 'pdf')
+    plt.savefig('./figures/train_results_{}.pdf'.format(filename), format = 'pdf')
 

@@ -31,7 +31,7 @@ if __name__ == "__main__":
     
     # Path & filename to save or load
     path = "./models/intersection"
-    filename = "MADDPG_dense_trained_agent.pt"
+    filename = "MMADDPG_trained_4agent3000step_wFeAR.pt"
 
     # Number of parallel environment
     num_envs = 1
@@ -107,9 +107,9 @@ if __name__ == "__main__":
         "action": {"type": "MultiAgentAction",
                "action_config": {"type": "DiscreteMetaAction",
                                  "lateral": False}},
-        "initial_vehicle_count": 20,
-        "controlled_vehicles": 1,
-        "policy_frequency": 15
+        "initial_vehicle_count": 10,
+        "controlled_vehicles": 4,
+        "policy_frequency": 2
     }
 
     # Define the simple spread environment as a parallel environment
@@ -170,7 +170,7 @@ if __name__ == "__main__":
     #env.unwrapped.set_record_video_wrapper(env)
     env.unwrapped.config["simulation_frequency"] = 15  # Higher FPS for rendering
 
-    for videos in range(10):
+    for videos in range(30):
         done = truncated = False
         state, info = env.reset()
         while not (done or truncated):

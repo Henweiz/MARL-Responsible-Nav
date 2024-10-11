@@ -173,10 +173,12 @@ def cal_FeAR_ij(i, j, action, MdR, before_action_env, epsilon = 1e-6):
 
         FeAR_ij = np.clip( ( (n_FeasibleActions_MdRi_j - n_FeasibleActions_Actioni_j) / (n_FeasibleActions_MdRi_j + epsilon) ), -1, 1)
 
+        del action_MdRi
+
         return FeAR_ij
 
 
-def cal_MdR(agents, DEFAULT_TARGET_SPEEDS=[0, 4.5, 9]):
+def cal_MdR(agents, env, DEFAULT_TARGET_SPEEDS=[0, 4.5, 9]):
     '''
     Function that calculate the MdR of all agents in the environment
 
@@ -188,7 +190,10 @@ def cal_MdR(agents, DEFAULT_TARGET_SPEEDS=[0, 4.5, 9]):
 
     MdR = []
     for agent in agents:
-        MdR_i = 2 if agent.speed <= (DEFAULT_TARGET_SPEEDS[0] + 1.0) else (0 if agent.speed >= (DEFAULT_TARGET_SPEEDS[2] + 1.0) else 1)
+        MdR_i = 2 if agent.speed <= (DEFAULT_TARGET_SPEEDS[0] + 1.0) else (0 if agent.speed >= (DEFAULT_TARGET_SPEEDS[2] - 2.0) else 1)
+        nearest_vehicle =  env.unwrapped.road.close_objects_to(agent, env.PERCEPTION_DISTANCE, count=1, see_behind=False, sort=True, vehicles_only=True)
+        if nearest_vehicle != [] and np.linalg.norm(np.array(nearest_vehicle[0].position) - np.array(agent.position)) < 10:
+            MdR_i = 0
         MdR.append(MdR_i)
 
     return MdR

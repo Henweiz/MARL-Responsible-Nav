@@ -117,16 +117,14 @@ class MADDPGAgent:
 
     
     # Training loop
-    def train(self, num_envs, evo_steps, learning_delay, env):
+    def train(self, num_envs, evo_steps, learning_delay, env, with_FeAR=True):
         pop_episode_scores = []
         total_steps = 0
         for agent in self.pop:  # Loop through population
-            state, info = env.reset()
+            state, info = env.reset(seed=42)
             scores = np.zeros(num_envs)
             completed_episode_scores = []
             steps = 0
-            
-
 
             for idx_step in range(evo_steps // num_envs):
                 if self.NET_CONFIG["arch"] == "mlp":
@@ -160,32 +158,51 @@ class MADDPGAgent:
                 else:
                     action = cont_actions
 
-                #Get MdRs
-                MdR = cal_MdR(env.unwrapped.road.vehicles)
-                print("MdR=", MdR)
-                
-                #Deepcopy current env
-                before_action_env = copy.deepcopy(env)
-                
-                # Act in environment
-                action_tuple  = tuple(action.values())
-                action_tuple = tuple(x.item() for x in action_tuple)
-                next_state, reward, termination, truncation, info = env.step(action_tuple)
-                
-                #Calculate FeAR
-                FeAR = np.zeros(shape = (self.INIT_HP["N_AGENTS"],len(env.unwrapped.road.vehicles)))
+                if with_FeAR:
 
-                FeAR_weight = -5.0
+                    #Get MdRs
+                    MdR = cal_MdR(env.unwrapped.controlled_vehicles, env)
+                    print("MdR=", MdR)
+                    
+                    #Deepcopy current env
+                    before_action_env = copy.deepcopy(env)
+                    
+                    # Act in environment
+                    action_tuple  = tuple(action.values())
+                    action_tuple = tuple(x.item() for x in action_tuple)
+                    print("action = ", action_tuple)
+                    next_state, reward, termination, truncation, info = env.step(action_tuple)
+                    print(info)
+                    
+                    '''
+                    Question: is the order of controlled vehicles in action same as the order that they are in env.controlled_vehicles?
+                    '''
 
-                for i in range(self.INIT_HP["N_AGENTS"]):
-                    for j in range(len(env.unwrapped.road.vehicles) - 1):
-                        FeAR[i,j] += cal_FeAR_ij(i, j, info['action'], MdR, before_action_env)
-                        
-        
+                    #Calculate FeAR
+                    FeAR = np.zeros(shape = (self.INIT_HP["N_AGENTS"],len(env.unwrapped.road.vehicles)))
 
-                reward += FeAR_weight * np.sum(FeAR, axis=1)
+                    alpha = 0.4
+                    FeAR_weight = -3.0
 
-                del before_action_env
+                    for i in range(self.INIT_HP["N_AGENTS"]):
+                        for j in range(len(env.unwrapped.road.vehicles) - 1):
+                            FeAR[i,j] += cal_FeAR_ij(i, j, info["action"], MdR, before_action_env)
+
+                    print("FeAR = ")
+                    print(FeAR)
+
+                    reward = (1 - alpha) *  np.array(reward) + alpha * FeAR_weight * np.sum(FeAR, axis=1)
+                    reward = tuple(reward)
+
+                    del before_action_env
+
+                else:
+                    
+                    # Act in environment
+                    action_tuple  = tuple(action.values())
+                    action_tuple = tuple(x.item() for x in action_tuple)
+                    next_state, reward, termination, truncation, info = env.step(action_tuple)
+                    print(info)
                 
                 if self.NET_CONFIG["arch"] == "mlp":
                     next_state_dict = self.make_dict([x.flatten() for x in next_state])
@@ -193,10 +210,11 @@ class MADDPGAgent:
                     next_state_dict = self.make_dict(next_state)
 
                 reward_dict = self.make_dict(reward)
-                #print(reward_dict)
+
+                print("reward = ")
+                print(reward_dict)
+
                 termination_dict = self.make_dict(termination)
-            
-                
 
                 scores += np.sum(np.array(list(reward_dict.values())).transpose(), axis=-1)
                 total_steps += num_envs
@@ -260,7 +278,8 @@ class MADDPGAgent:
                         completed_episode_scores.append(scores[i])
                         agent.scores.append(scores[i])
                         scores[i] = 0
-                        state, info = env.reset()
+                        state, info = env.reset(seed=42)
+                     
                 
                 agent.reset_action_noise(reset_noise_indices)
                 
