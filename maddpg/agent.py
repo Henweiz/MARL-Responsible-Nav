@@ -11,6 +11,7 @@ from agilerl.utils.utils import create_population
 from agilerl.wrappers.pettingzoo_wrappers import PettingZooVectorizationParallelWrapper
 from agilerl.algorithms.maddpg import MADDPG
 
+import pickle
 import gymnasium as gym
 import highway_env
 
@@ -127,14 +128,25 @@ class MADDPGAgent:
 
 
             for idx_step in range(evo_steps // num_envs):
-
+                #print(state.shape)
                 if self.NET_CONFIG["arch"] == "mlp":
-                    state = [x.flatten() for x in state]
-                if self.INIT_HP["CUSTOM_ENV"]:
-                    state = [np.concatenate(state)] 
+                    #print("check")
+                    if self.INIT_HP["CUSTOM_ENV"]:
+                        state = [np.concatenate(state)] 
+                    else:
+                        state = [x.flatten() for x in state]
+                else:
+                    state = state[np.newaxis, :, :]
+                
+                    
  
-                #print(state)
+                
                 state_dict = self.make_dict(state)
+                if self.NET_CONFIG["arch"] == "cnn":
+                    for i in range(self.INIT_HP["N_AGENTS"]):
+                        obs = state_dict[f'agent_{i}']
+                        #print(obs.shape)
+                        state_dict[f'agent_{i}'] = obs[np.newaxis, :, :]
                 #print(state_dict)
                 
                 if self.INIT_HP["CHANNELS_LAST"]:
@@ -173,13 +185,17 @@ class MADDPGAgent:
                 else:
                     action_tuple = tuple(x.item() for x in action_tuple)
                     next_state, reward, termination, truncation, info = env.step(action_tuple)
-                if self.INIT_HP["CUSTOM_ENV"]:
+                if self.INIT_HP["CUSTOM_ENV"] and self.NET_CONFIG["arch"] == "mlp":
                     next_state = [np.concatenate(next_state)]   
                 
                 if self.NET_CONFIG["arch"] == "mlp":
                     next_state_dict = self.make_dict([x.flatten() for x in next_state])
                 else:
-                    next_state_dict = self.make_dict(next_state)
+                    next_state_dict = self.make_dict(next_state[np.newaxis, :, :])
+                    next_state_dict = {
+                        agent_id: ns[np.newaxis, :, :]
+                        for agent_id, ns in next_state_dict.items()
+                    }
                 reward_dict = self.make_dict([reward])
                 #print(reward_dict)
                 termination_dict = self.make_dict([termination])
@@ -240,13 +256,13 @@ class MADDPGAgent:
                 term_array = np.array(list(termination_dict.values())).transpose()
                 for i in range(num_envs):
                     if all(term_array) or truncation:
+                        #print(info)
                         
                         reset_noise_indices.append(i)
                             
                         completed_episode_scores.append(scores[i])
                         agent.scores.append(scores[i])
                         scores[i] = 0
-                        state, info = env.reset()
                 
                 agent.reset_action_noise(reset_noise_indices)
                 if all(term_array) or truncation:
@@ -289,14 +305,19 @@ class MADDPGAgent:
             elite.save_checkpoint(save_path)
         else:
             self.pop[0].save_checkpoint(save_path)
+        memory_path = os.path.join(path, 'memory.pkl')
+        with open(memory_path, 'wb') as f:
+            pickle.dump(self.memory, f)
     
     # Load agents.
     def load_checkpoint(self, path, filename):
         load_path = os.path.join(path, filename)
-        #memory_path = os.path.join(path, "memory.pkl")
+        memory_path = os.path.join(path, "memory.pkl")
         for agent in self.pop:
             agent.load_checkpoint(load_path)
             #agent.steps[-1] = 0
+        with open(memory_path, 'rb') as f:
+            self.memory = pickle.load(f)
     
     # Check for reached the max steps number accross all agents.
     def reached_max_steps(self, max_steps):
@@ -324,3 +345,4 @@ class MADDPGAgent:
         for i in range(self.INIT_HP["N_AGENTS"]):
             dict[f'agent_{i}'] = tuple[i]
         return dict
+

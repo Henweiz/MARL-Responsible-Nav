@@ -19,13 +19,17 @@ from log import Logger
 from custom.customenv import CustomEnv
 from custom.grid_world import GWorld
 
+def addDim(arr):
+    arr = arr[np.newaxis, :, :]
+    return arr
+
 
 if __name__ == '__main__':
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Define the network configuration
-    
+    '''
     NET_CONFIG = {
         "arch": "mlp",  # Network architecture
         "hidden_size": [64, 64],  # Actor hidden size
@@ -33,12 +37,12 @@ if __name__ == '__main__':
     '''
     NET_CONFIG = {
         "arch": "cnn",  # Network architecture
-        "hidden_size": [64, 64],  # Actor hidden size
-        "channel_size": [32, 32],
-        "kernel_size": [3, 3],
+        "hidden_size": [128, 128],  # Actor hidden size
+        "channel_size": [32, 64],
+        "kernel_size": [2, 2],
         "stride_size": [1, 1]
     }
-    '''
+    
    
 
     # Define the initial hyperparameters
@@ -46,32 +50,32 @@ if __name__ == '__main__':
         # Swap image channels dimension from last to first [H, W, C] -> [C, H, W]
         "CUSTOM_ENV": True,
         "CHANNELS_LAST": False,
-        "BATCH_SIZE": 32,  # Batch size
-        "O_U_NOISE": True,  # Ornstein Uhlenbeck action noise
+        "BATCH_SIZE": 64,  # Batch size
+        "O_U_NOISE": False,  # Ornstein Uhlenbeck action noise
         "EXPL_NOISE": 0.1,  # Action noise scale
         "MEAN_NOISE": 0.0,  # Mean action noise
         "THETA": 0.15,  # Rate of mean reversion in OU noise
         "DT": 0.01,  # Timestep for OU noise
         "LR_ACTOR": 0.001,  # Actor learning rate
         "LR_CRITIC": 0.001,  # Critic learning rate
-        "GAMMA": 0.99,  # Discount factor
+        "GAMMA": 0.98,  # Discount factor
         "MEMORY_SIZE": 200000,  # Max memory buffer size
         "LEARN_STEP": 10,  # Learning frequency
         "TAU": 0.01,  # For soft update of target parameters
         "POLICY_FREQ": 1,  # Policy frequnecy
         "POP_SIZE": 1,  # Population size, 1 if we do not want to use Hyperparameter Optimization
-        "MAX_EPISODES": 1,
-        "TRAIN_STEPS": 1,
+        "MAX_EPISODES": 1000,
+        "TRAIN_STEPS": 200,
         "LOAD_AGENT": False, # Load previous trained agent
-        "SAVE_AGENT": False, # Save the agent
-        "LOGGING": False,
+        "SAVE_AGENT": True, # Save the agent
+        "LOGGING": True,
         "RESUME": False,
         "RESUME_ID": "6v7adywb"
     }
     
     # Path & filename to save or load
     path = "./models/custom"
-    filename = "MADDPG_single_agent.pt"
+    filename = "MADDPG_test2_agent.pt"
 
     # Number of parallel environment
     num_envs = 1
@@ -137,12 +141,13 @@ if __name__ == '__main__':
 
     # Configure the multi-agent algo input arguments
     if NET_CONFIG["arch"] == "mlp":
-        print(obs.shape)
-        state_dim = [(160, 1) for agent, _ in enumerate(env.agents)]
+        obs = obs.flatten()
+        state_dim = [obs.shape for agent, _ in enumerate(env.agents)]
         print(state_dim)
         one_hot = False
     else:
-        state_dim = [obs[agent].shape for agent, _ in enumerate(env.agents)]
+        obs = addDim(obs)
+        state_dim = [obs.shape for agent, _ in enumerate(env.agents)]
         #state_dim = [np.moveaxis(np.zeros(state_dim[agent]), [-1], [-3]).shape for agent, _ in enumerate(env.agents)]
         print(state_dim)
         one_hot = False
@@ -198,10 +203,10 @@ if __name__ == '__main__':
         total_steps += steps
         pbar.update(1)
         if INIT_HP["LOGGING"]:
-            logger.log(np.mean(mean_scores), agents.total_loss(), agents.agents_steps()[0])
+            logger.log(np.mean(mean_scores), agents.total_loss(), steps)
 
         print(f"--- Episode: {i} ---")
-        print(f"Steps {agents.agents_steps()}")
+        print(f"Steps {steps}")
         print(f"Scores: {mean_scores}")
         print(f"Loss: {agents.total_loss()}")
         #print(f'Fitnesses: {["%.2f"%fitness for fitness in fitnesses]}')
@@ -212,6 +217,3 @@ if __name__ == '__main__':
         agents.save_checkpoint(path, filename)
         print("Succesfully saved the agent")
 
-def addDim(arr):
-    arr = arr[:, :, np.newaxis]
-    return arr
