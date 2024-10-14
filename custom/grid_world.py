@@ -531,23 +531,25 @@ class GWorld:
             if apples is not None and apple_eaters is not None:
                 if VerboseFlag: print(f'{apples=}')
                 for idx in apple_eaters:
-                    for apple_id, apple in enumerate(apples):
+                    for apple_id, apple in apples:
                         if VerboseFlag: print(f'{apple_id=}, {apple=}')
+                        # print(apple)
                         if NewAgentLocations_CurrentFloor[idx][0] == apple[0] and \
                                 NewAgentLocations_CurrentFloor[idx][1] == apple[1]:
                             apples_caught.append([idx, apple_id])
                             eaten_apple_ids.append(apple_id)
-                apple_ids = list(range(len(apples)))
-                uneaten_apple_ids = [x for x in apple_ids if x not in eaten_apple_ids]
-                apples = apples[uneaten_apple_ids]
+                #apple_ids = list(range(len(apples)))
+                #uneaten_apple_ids = [x for x in apple_ids if x not in eaten_apple_ids]
+                # apples = apples[uneaten_apple_ids]
                 if VerboseFlag: print(f'{apples =}')
                 if VerboseFlag: print(f'{apples_caught=}')
 
 
 
             #############################################
+            ############## EDITED --------
 
-            self.update_agent_locations_2_world_state(NewAgentLocations_CurrentFloor=NewAgentLocations_CurrentFloor,
+            if step == self.MaxSteps-1: self.update_agent_locations_2_world_state(NewAgentLocations_CurrentFloor=NewAgentLocations_CurrentFloor,
                                                       VerboseFlag=VerboseFlag)
 
             #############################################

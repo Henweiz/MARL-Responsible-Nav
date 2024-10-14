@@ -10,6 +10,7 @@ from agilerl.hpo.tournament import TournamentSelection
 from agilerl.utils.utils import create_population
 from agilerl.wrappers.pettingzoo_wrappers import PettingZooVectorizationParallelWrapper
 from agilerl.algorithms.maddpg import MADDPG
+from agilerl.algorithms.matd3 import MATD3
 
 import pickle
 import gymnasium as gym
@@ -79,7 +80,7 @@ class MADDPGAgent:
             )
         else:
             self.pop = []
-            agent = MADDPG(
+            agent = MATD3(
                 state_dims=self.state_dim,
                 action_dims=self.action_dim,
                 one_hot=self.one_hot,
@@ -213,7 +214,9 @@ class MADDPGAgent:
                         for agent_id, ns in next_state_dict.items()
                     }
                 
+                #print(cont_actions)
                 cont_actions = {k: np.squeeze(v) for (k,v) in cont_actions.items()}
+                #print(cont_actions)
                 # Save experiences to replay buffer
                 self.memory.save_to_memory(
                     state_dict,
@@ -262,11 +265,15 @@ class MADDPGAgent:
                             
                         completed_episode_scores.append(scores[i])
                         agent.scores.append(scores[i])
-                        scores[i] = 0
+                        #scores[i] = 0
                 
                 agent.reset_action_noise(reset_noise_indices)
                 if all(term_array) or truncation:
                     break
+                if idx_step == (evo_steps -1):
+                    completed_episode_scores.append(scores[0])
+                    agent.scores.append(scores[0])
+                
                 
 
             agent.steps[-1] += steps
@@ -337,6 +344,9 @@ class MADDPGAgent:
         except:
             return 0
         # Calculate the total loss
+        #print(last_step.values())
+        if(loss is None for loss, _ in last_step.values()):
+            return 0
         total_loss = sum(loss for loss, _ in last_step.values())
         return total_loss
     

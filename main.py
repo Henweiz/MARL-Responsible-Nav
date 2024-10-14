@@ -40,7 +40,7 @@ if __name__ == '__main__':
         "hidden_size": [128, 128],  # Actor hidden size
         "channel_size": [32, 64],
         "kernel_size": [2, 2],
-        "stride_size": [1, 1]
+        "stride_size": [2, 2]
     }
     
    
@@ -50,9 +50,9 @@ if __name__ == '__main__':
         # Swap image channels dimension from last to first [H, W, C] -> [C, H, W]
         "CUSTOM_ENV": True,
         "CHANNELS_LAST": False,
-        "BATCH_SIZE": 64,  # Batch size
+        "BATCH_SIZE": 128,  # Batch size
         "O_U_NOISE": False,  # Ornstein Uhlenbeck action noise
-        "EXPL_NOISE": 0.1,  # Action noise scale
+        "EXPL_NOISE": 0.15,  # Action noise scale
         "MEAN_NOISE": 0.0,  # Mean action noise
         "THETA": 0.15,  # Rate of mean reversion in OU noise
         "DT": 0.01,  # Timestep for OU noise
@@ -64,18 +64,18 @@ if __name__ == '__main__':
         "TAU": 0.01,  # For soft update of target parameters
         "POLICY_FREQ": 1,  # Policy frequnecy
         "POP_SIZE": 1,  # Population size, 1 if we do not want to use Hyperparameter Optimization
-        "MAX_EPISODES": 1000,
+        "MAX_EPISODES": 2000,
         "TRAIN_STEPS": 200,
         "LOAD_AGENT": False, # Load previous trained agent
         "SAVE_AGENT": True, # Save the agent
         "LOGGING": True,
         "RESUME": False,
-        "RESUME_ID": "6v7adywb"
+        "RESUME_ID": "a7f32o4m"
     }
     
     # Path & filename to save or load
-    path = "./models/custom"
-    filename = "MADDPG_test2_agent.pt"
+    path = "./models/custom/TD3"
+    filename = "MATD3_agent.pt"
 
     # Number of parallel environment
     num_envs = 1

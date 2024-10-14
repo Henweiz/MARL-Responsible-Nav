@@ -38,7 +38,7 @@ class CustomEnv(gym.Env):
         # Example when using discrete actions:
         self.action_space = spaces.Discrete(N_DISCRETE_ACTIONS)
         # Example for using image as input:
-        self.observation_space = spaces.Box(low=-1.0, high=255.0,
+        self.observation_space = spaces.Box(low=-1.0, high=16.0,
                                             shape=(10, 16), dtype=np.float64)
         self.num_agents = 1
     
@@ -56,6 +56,7 @@ class CustomEnv(gym.Env):
                 
         Action4Agents[0] = (0, action)
 #         print("Action4AGENTS: ----- ", Action4Agents)
+        # print(self.apples)
 
         agent_crashes, restricted_moves, apples, apples_caught = self.World.UpdateGWorld(ActionID4Agents=Action4Agents, apples=self.apples, apple_eaters=[0])
         
@@ -63,25 +64,41 @@ class CustomEnv(gym.Env):
         info = {}
         terminated = False
         truncated = False
+        
 
         # OBSERVATIONS   Shape (10,16)
-        observation = self.World.WorldState
-        observation[9,15] += 50
+
+        # observation[0,0] += 9
+        # observation[0,15] += 9
+        # observation[9,0] += 9
+        # observation[9,15] += 9
+        
+        
         
         self.episode_length += 1
 
         if agent_crashes[0]:
-            reward -= 25
+            reward -= 50
             terminated = True
-        
+
         if len(apples_caught) == 1:
-            reward = 50
-            truncated = True
+            apple_id = apples_caught[0][1]
+            # key = list(self.apples)[apple_idx]
+            self.apples.pop(apple_id)
+            self.apples_eaten += 1
+            reward += 100
+            if self.apples_eaten == 4:
+                truncated = True
         
         if restricted_moves[0]:
             reward -= 1
+        #else:
+        #    reward += 0.1
 
         self.episode_reward += reward    
+        observation = self.World.WorldState
+        for loc in self.apples.values():
+            observation[loc] += 9
         
         if terminated or truncated:
             info = {
@@ -92,8 +109,10 @@ class CustomEnv(gym.Env):
                 #"agent_mask_env": {restricted_moves}
                 "restricted": {restricted_moves[0]}
             }
-            self.episode_reward = 0  # Reset for the next episode
-            self.episode_length = 0
+            #self.episode_reward = 0  # Reset for the next episode
+            #self.episode_length = 0
+        #inference = True
+        
         if inference: print(observation, ", ")
         
             
@@ -194,11 +213,30 @@ class CustomEnv(gym.Env):
 
         # Observe (1) location of agent and all other agents, (2) map state, (3) apples/stars
         valid_locations = np.transpose(np.where(self.Region > 0))
-        self.apples = valid_locations[[-1]]
+        # print(valid_locations)
+        # print(valid_locations.shape)
+        self.apples = valid_locations[[0, 14, 54, -1]]
+        self.apples = {"apple_1": (0,0),
+                       "apple_2": (0,15),
+                       "apple_3": (9,0),
+                       "apple_4": (9,15)}
+
+            
+        # self.apples = [(0,15),(9,0),(9,15),(0,0)]
+        # self.apples = self.apples[0]
 
         # Observations   
         observation = self.World.WorldState
-        observation[9,15] += 10
+        self.apples_eaten = 0
+        for loc in self.apples.values():
+            observation[loc] += 9
+        # observation[9,15] += 9
+        # observation[9,0] += 9
+        # observation[0,15] += 9
+        # observation[0,0] += 9
+
+
+
 
 
         return (observation, {})  # reward, done, info can't be included
