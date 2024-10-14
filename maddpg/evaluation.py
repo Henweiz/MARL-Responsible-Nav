@@ -30,8 +30,9 @@ if __name__ == "__main__":
 
     
     # Path & filename to save or load
-    path = "./models/intersection"
-    filename = "MMADDPG_trained_4agent3000step_wFeAR.pt"
+    path = "./models/intersection/seed"
+    seed = 66
+    filename = "MADDPG_trained_4agent2000eps{}seed_wFeAR.pt".format(seed)
 
     # Number of parallel environment
     num_envs = 1
@@ -55,9 +56,9 @@ if __name__ == "__main__":
     },
     "action": {"type": "MultiAgentAction",
                "action_config": {"type": "DiscreteAction"}},
-    "initial_vehicle_count": 20,
-    "controlled_vehicles": 1,
-    "policy_frequency": 15
+    "initial_vehicle_count": 10,
+    "controlled_vehicles": 4,
+    "policy_frequency": 2
     }
     
     config2 = {
@@ -109,14 +110,14 @@ if __name__ == "__main__":
                                  "lateral": False}},
         "initial_vehicle_count": 10,
         "controlled_vehicles": 4,
-        "policy_frequency": 2
+        "policy_frequency": 15
     }
 
     # Define the simple spread environment as a parallel environment
     env = gym.make("intersection-multi-agent-v1", render_mode="human", config = config3)
     print(env.unwrapped.config)
     #env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
-    obs, info = env.reset(seed=42)
+    obs, info = env.reset(seed=seed)
     env.num_agents = env.unwrapped.config['controlled_vehicles']
     env.agents = [f'agent_{i}' for i in range(env.num_agents)]
     net = "cnn"
@@ -170,9 +171,9 @@ if __name__ == "__main__":
     #env.unwrapped.set_record_video_wrapper(env)
     env.unwrapped.config["simulation_frequency"] = 15  # Higher FPS for rendering
 
-    for videos in range(30):
+    for videos in range(10):
         done = truncated = False
-        state, info = env.reset()
+        state, info = env.reset(seed=seed)
         while not (done or truncated):
             #print("step")
             agent_mask = info["agent_mask"] if "agent_mask" in info.keys() else None

@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import torch
-from pettingzoo.mpe import simple_spread_v3
 from tqdm import trange
 
 from agilerl.components.multi_agent_replay_buffer import MultiAgentReplayBuffer
@@ -121,7 +120,7 @@ class MADDPGAgent:
         pop_episode_scores = []
         total_steps = 0
         for agent in self.pop:  # Loop through population
-            state, info = env.reset(seed=42)
+            state, info = env.reset(seed=self.INIT_HP["SEED"])
             scores = np.zeros(num_envs)
             completed_episode_scores = []
             steps = 0
@@ -143,7 +142,6 @@ class MADDPGAgent:
                     if "env_defined_actions" in info.keys()
                     else None
                 )
-
                 
                 #print(state_dict.values.shape)
                 # Get next action from agent
@@ -162,7 +160,7 @@ class MADDPGAgent:
 
                     #Get MdRs
                     MdR = cal_MdR(env.unwrapped.controlled_vehicles, env)
-                    print("MdR=", MdR)
+                    #print("MdR=", MdR)
                     
                     #Deepcopy current env
                     before_action_env = copy.deepcopy(env)
@@ -170,9 +168,9 @@ class MADDPGAgent:
                     # Act in environment
                     action_tuple  = tuple(action.values())
                     action_tuple = tuple(x.item() for x in action_tuple)
-                    print("action = ", action_tuple)
+                    #print("action = ", action_tuple)
                     next_state, reward, termination, truncation, info = env.step(action_tuple)
-                    print(info)
+                    #print(info)
                     
                     '''
                     Question: is the order of controlled vehicles in action same as the order that they are in env.controlled_vehicles?
@@ -181,8 +179,8 @@ class MADDPGAgent:
                     #Calculate FeAR
                     FeAR = np.zeros(shape = (self.INIT_HP["N_AGENTS"],len(env.unwrapped.road.vehicles)))
 
-                    alpha = 0.4
-                    FeAR_weight = -3.0
+                    alpha = 0.5
+                    FeAR_weight = -2.0
 
                     for i in range(self.INIT_HP["N_AGENTS"]):
                         for j in range(len(env.unwrapped.road.vehicles) - 1):
@@ -202,7 +200,7 @@ class MADDPGAgent:
                     action_tuple  = tuple(action.values())
                     action_tuple = tuple(x.item() for x in action_tuple)
                     next_state, reward, termination, truncation, info = env.step(action_tuple)
-                    print(info)
+                    #print(info)
                 
                 if self.NET_CONFIG["arch"] == "mlp":
                     next_state_dict = self.make_dict([x.flatten() for x in next_state])
@@ -211,8 +209,8 @@ class MADDPGAgent:
 
                 reward_dict = self.make_dict(reward)
 
-                print("reward = ")
-                print(reward_dict)
+                #print("reward = ")
+                #print(reward_dict)
 
                 termination_dict = self.make_dict(termination)
 
@@ -252,7 +250,7 @@ class MADDPGAgent:
                         # Learn according to agent's RL algorithm
                         loss = agent.learn(experiences)
                         self.loss.append(loss)
-                        print("loss=", loss)
+                        #print("loss=", loss)
                 # Handle num_envs > learn step; learn multiple times per step in env
                 elif (
                     len(self.memory) >= agent.batch_size and self.memory.counter > learning_delay
@@ -263,7 +261,7 @@ class MADDPGAgent:
                         # Learn according to agent's RL algorithm
                         loss = agent.learn(experiences)
                         self.loss.append(loss)
-                        print("loss=", loss)
+                        #print("loss=", loss)
 
                 state = next_state
 
@@ -278,11 +276,12 @@ class MADDPGAgent:
                         completed_episode_scores.append(scores[i])
                         agent.scores.append(scores[i])
                         scores[i] = 0
-                        state, info = env.reset(seed=42)
+                        state, info = env.reset(seed=self.INIT_HP["SEED"])
                      
                 
                 agent.reset_action_noise(reset_noise_indices)
-                
+                if all(term_array) or truncation:
+                    break      
 
             agent.steps[-1] += steps
             pop_episode_scores.append(completed_episode_scores)
@@ -342,7 +341,10 @@ class MADDPGAgent:
     
     def total_loss(self):
         # Get the last step (last dictionary in the list)
-        last_step = self.loss[-1]
+        try:
+            last_step = self.loss[-1]
+        except:
+            return 0
         
         # Calculate the total loss
         total_loss = sum(loss for loss, _ in last_step.values())

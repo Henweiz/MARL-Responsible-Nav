@@ -36,14 +36,13 @@ if __name__ == '__main__':
         "kernel_size": [2, 2],
         "stride_size": [2, 2]
     }
-    
+
    
 
     # Define the initial hyperparameters
     INIT_HP = {
         # Swap image channels dimension from last to first [H, W, C] -> [C, H, W]
         "CHANNELS_LAST": True,
-        "BATCH_SIZE": 128,  # Batch size
         "O_U_NOISE": True,  # Ornstein Uhlenbeck action noise
         "EXPL_NOISE": 0.1,  # Action noise scale
         "MEAN_NOISE": 0.0,  # Mean action noise
@@ -53,26 +52,32 @@ if __name__ == '__main__':
         "LR_CRITIC": 0.001,  # Critic learning rate
         "GAMMA": 0.99,  # Discount factor
         "MEMORY_SIZE": 800000,  # Max memory buffer size
-        "LEARN_STEP": 50,  # Learning frequency
         "TAU": 0.01,  # For soft update of target parameters
-        "POLICY_FREQ": 2,  # Policy frequnecy
         "POP_SIZE": 1,  # Population size, 1 if we do not want to use Hyperparameter Optimization
-        "MAX_STEPS": 50000,
-        "TRAIN_STEPS": 500,
+        "POLICY_FREQ": 15,  # Policy frequnecy
+        "TRAIN_STEPS": 100,
+        "BATCH_SIZE": 128,  # Batch size
+        "MAX_EPISODES": 50,
+        "LEARN_STEP": 10,  # Learning frequency
         "LOAD_AGENT": False, # Load previous trained agent
-        "SAVE_AGENT": False, # Save the agent
-        "LOGGING": False,
+        "SAVE_AGENT": True, # Save the agent
+        "LOGGING": True,
         "RESUME": False,
-        "RESUME_ID": "6v7adywb"
-        "WITH_FEAR": True
+        "RESUME_ID": "6v7adywb",
+        "WITH_FEAR": True,
+        "SEED": 66
     }
     
     # Path & filename to save or load
-    path = "./models/intersection"
-    filename = "MADDPG_trained_4agent3000step_wFeAR.pt"
+    path = "./models/intersection/seed"
+    filename = "MADDPG_trained_4agent2000eps{}seed_woFeAR.pt".format(INIT_HP["SEED"])
 
+    # Records for evaluation of performance
     scores = []
     losses = []
+    x_axis = [-1]
+    max_steps_per_episode = []
+
     
     # Number of parallel environment
     num_envs = 1
@@ -99,7 +104,7 @@ if __name__ == '__main__':
                },
     "initial_vehicle_count": 10,
     "controlled_vehicles": 4,
-    "collision_reward": -10
+    "collision_reward": -5
     }
 
     config2 = {
@@ -127,15 +132,18 @@ if __name__ == '__main__':
                },
         "initial_vehicle_count": 10,
         "controlled_vehicles": 4,
-        "collision_reward": -10
+        "collision_reward": -5,
+        "high_speed_reward": 1,
+        "arrived_reward": 1,
+        "policy_frequency": INIT_HP["POLICY_FREQ"]
     }
     
 
     # Define the simple spread environment as a parallel environment
-    env = gym.make("intersection-multi-agent-v1", render_mode=None, config = config2)
+    env = gym.make("intersection-multi-agent-v1", render_mode=None, config=config2)
     print(env.unwrapped.config)
     #env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
-    obs, info = env.reset(seed=42)
+    obs, info = env.reset(seed=INIT_HP["SEED"])
     env.num_agents = env.unwrapped.config['controlled_vehicles']
     env.agents = [f'agent_{i}' for i in range(env.num_agents)]
     # Logger
@@ -197,7 +205,8 @@ if __name__ == '__main__':
         agents.load_checkpoint(path, filename)
 
     # Define training loop parameters
-    max_steps = INIT_HP["MAX_STEPS"]  # Max steps
+    #max_steps = INIT_HP["MAX_STEPS"]  # Max steps
+    episodes = INIT_HP["MAX_EPISODES"]  # Max steps
     learning_delay = 0  # Steps before starting learning
 
     evo_steps = INIT_HP["TRAIN_STEPS"]  # Evolution frequency
@@ -209,8 +218,10 @@ if __name__ == '__main__':
 
     # TRAINING LOOP
     print("Training...")
-    pbar = trange(max_steps - agents.agents_steps()[-1], unit="step")
-    while not agents.reached_max_steps(max_steps):
+    pbar = trange(episodes, unit="episode")
+    for i in range(episodes):
+    #pbar = trange(max_steps - agents.agents_steps()[-1], unit="step")
+    #while not agents.reached_max_steps(max_steps):
         steps, pop_episode_scores = agents.train(num_envs, evo_steps, learning_delay, env, with_FeAR=INIT_HP["WITH_FEAR"])
         #fitnesses = agents.evaluate_agent(env, eval_steps)
         mean_scores = [
@@ -219,17 +230,21 @@ if __name__ == '__main__':
         ]
 
         total_steps += steps
-        pbar.update(steps // len(agents.pop))
+        pbar.update(1)
+        #pbar.update(steps // len(agents.pop))
         if INIT_HP["LOGGING"]:
             logger.log(np.mean(mean_scores), agents.total_loss(), agents.agents_steps()[0])
 
-        print(f"--- Global steps {total_steps} ---")
+        #print(f"--- Global steps {total_steps} ---")
+        print(f"--- Episode: {i} ---")
         print(f"Steps {agents.agents_steps()}")
         print(f"Scores: {mean_scores}")
         print(f"Loss: {agents.total_loss()}")
         #print(f'Fitnesses: {["%.2f"%fitness for fitness in fitnesses]}')
         scores.append(mean_scores)
         losses.append(agents.total_loss())
+        x_axis.append(x_axis[-1] + 1)
+        max_steps_per_episode.append(steps)
 
     
     pbar.close()
@@ -238,17 +253,29 @@ if __name__ == '__main__':
         agents.save_checkpoint(path, filename)
         print("Succesfully saved the agent")
     
-    fig, (ax1, ax2) = plt.subplots(2)
-    x_axis = np.arange(0, INIT_HP["MAX_STEPS"], INIT_HP["MAX_STEPS"]//10)
+    # Computing data for visualization 
+    X_AXIS = np.arange(0, INIT_HP["MAX_EPISODES"], INIT_HP["MAX_EPISODES"] // 10)
+    coef1, intersect1 = np.polyfit(x_axis[1:], scores, deg=1)
+    x_seq = np.linspace(0, INIT_HP["MAX_EPISODES"], num=10 * INIT_HP["MAX_EPISODES"])
+    coef2, intersect2 = np.polyfit(x_axis[1:], max_steps_per_episode, deg=1)
+
+    # Visualization
+    fig, (ax1, ax2, ax3) = plt.subplots(3)
     fig.suptitle('Training results')
-    ax1.plot(scores)
-    ax2.plot(losses)
-    ax1.set_xticks(x_axis) 
-    ax2.set_xticks(x_axis)
+    ax1.plot(x_axis[1:], scores)
+    ax1.plot(x_seq, intersect1 + coef1 * x_seq, color="r", lw=0.8)
+    ax2.plot(x_axis[1:], max_steps_per_episode)
+    ax2.plot(x_seq, intersect2 + coef2 * x_seq, color="r", lw=0.8)
+    ax3.plot(x_axis[1:], losses)
+    ax1.set_xticks(X_AXIS) 
+    ax2.set_xticks(X_AXIS) 
+    ax3.set_xticks(X_AXIS)
     ax1.set_ylabel('Scores')
-    ax2.set_ylabel('Loss')
-    ax2.set_xlabel('steps')
+    ax2.set_ylabel('Max Steps')
+    ax3.set_ylabel('Loss')
+    ax3.set_xlabel('episodes')
     ax1.grid()
     ax2.grid()
-    plt.savefig('./figures/train_results_{}.pdf'.format(filename), format = 'pdf')
+    ax3.grid()
+    plt.savefig('./figures/seed/train_results_{}.pdf'.format(filename), format = 'pdf')
 
