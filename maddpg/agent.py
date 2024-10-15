@@ -120,7 +120,7 @@ class MADDPGAgent:
         pop_episode_scores = []
         total_steps = 0
         for agent in self.pop:  # Loop through population
-            state, info = env.reset(seed=self.INIT_HP["SEED"])
+            state, info = env.reset()
             scores = np.zeros(num_envs)
             completed_episode_scores = []
             steps = 0
@@ -200,7 +200,8 @@ class MADDPGAgent:
                     action_tuple  = tuple(action.values())
                     action_tuple = tuple(x.item() for x in action_tuple)
                     next_state, reward, termination, truncation, info = env.step(action_tuple)
-                    #print(info)
+                    print(info)
+
                 
                 if self.NET_CONFIG["arch"] == "mlp":
                     next_state_dict = self.make_dict([x.flatten() for x in next_state])
@@ -276,7 +277,7 @@ class MADDPGAgent:
                         completed_episode_scores.append(scores[i])
                         agent.scores.append(scores[i])
                         scores[i] = 0
-                        state, info = env.reset(seed=self.INIT_HP["SEED"])
+                        state, info = env.reset()
                      
                 
                 agent.reset_action_noise(reset_noise_indices)

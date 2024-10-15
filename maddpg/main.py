@@ -18,6 +18,10 @@ from agent import MADDPGAgent
 from log import Logger
 import matplotlib.pyplot as plt
 
+from highway_env.envs.intersection_env import IntersectionEnv
+
+
+
 if __name__ == '__main__':
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -42,7 +46,7 @@ if __name__ == '__main__':
     # Define the initial hyperparameters
     INIT_HP = {
         # Swap image channels dimension from last to first [H, W, C] -> [C, H, W]
-        "CHANNELS_LAST": True,
+        "CHANNELS_LAST": False,
         "O_U_NOISE": True,  # Ornstein Uhlenbeck action noise
         "EXPL_NOISE": 0.1,  # Action noise scale
         "MEAN_NOISE": 0.0,  # Mean action noise
@@ -54,23 +58,23 @@ if __name__ == '__main__':
         "MEMORY_SIZE": 800000,  # Max memory buffer size
         "TAU": 0.01,  # For soft update of target parameters
         "POP_SIZE": 1,  # Population size, 1 if we do not want to use Hyperparameter Optimization
-        "POLICY_FREQ": 15,  # Policy frequnecy
+        "POLICY_FREQ": 1,  # Policy frequnecy
         "TRAIN_STEPS": 100,
         "BATCH_SIZE": 128,  # Batch size
-        "MAX_EPISODES": 50,
-        "LEARN_STEP": 10,  # Learning frequency
+        "MAX_EPISODES": 1000,
+        "LEARN_STEP": 5,  # Learning frequency
         "LOAD_AGENT": False, # Load previous trained agent
-        "SAVE_AGENT": True, # Save the agent
+        "SAVE_AGENT": False, # Save the agent
         "LOGGING": True,
         "RESUME": False,
         "RESUME_ID": "6v7adywb",
-        "WITH_FEAR": True,
-        "SEED": 66
+        "WITH_FEAR": False
     }
     
     # Path & filename to save or load
-    path = "./models/intersection/seed"
-    filename = "MADDPG_trained_4agent2000eps{}seed_woFeAR.pt".format(INIT_HP["SEED"])
+    path = "./models/intersection/mlp"
+    #filename = "MADDPG_trained_4agent2000eps{}seed_woFeAR.pt".format(INIT_HP["SEED"])
+    filename = "MADDPG_trained_4agent{}eps_woFeAR_test.pt".format(INIT_HP["MAX_EPISODES"])
 
     # Records for evaluation of performance
     scores = []
@@ -87,7 +91,7 @@ if __name__ == '__main__':
         "type": "MultiAgentObservation",
         "observation_config": {
             "type": "Kinematics",
-            "vehicles_count": 10,
+            "vehicles_count": 15,
             "features": ["presence", "x", "y", "vx", "vy", "cos_h", "sin_h"],
             "features_range": {
                 "x": [-100, 100],
@@ -104,7 +108,9 @@ if __name__ == '__main__':
                },
     "initial_vehicle_count": 10,
     "controlled_vehicles": 4,
-    "collision_reward": -5
+    "collision_reward": -5,
+    "high_speed_reward": 1,
+    "arrived_reward": 1
     }
 
     config2 = {
@@ -140,10 +146,12 @@ if __name__ == '__main__':
     
 
     # Define the simple spread environment as a parallel environment
-    env = gym.make("intersection-multi-agent-v1", render_mode=None, config=config2)
+    env = gym.make("intersection-multi-agent-v1", render_mode=None, config=config)
+    #env = IntersectionEnv(config=config2)
+    #env.unwrapped.config.update(config2)
     print(env.unwrapped.config)
     #env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
-    obs, info = env.reset(seed=INIT_HP["SEED"])
+    obs, info = env.reset(seed=66)
     env.num_agents = env.unwrapped.config['controlled_vehicles']
     env.agents = [f'agent_{i}' for i in range(env.num_agents)]
     # Logger
@@ -277,5 +285,5 @@ if __name__ == '__main__':
     ax1.grid()
     ax2.grid()
     ax3.grid()
-    plt.savefig('./figures/seed/train_results_{}.pdf'.format(filename), format = 'pdf')
+    plt.savefig('./figures/mlp/train_results_{}.pdf'.format(filename), format = 'pdf')
 
