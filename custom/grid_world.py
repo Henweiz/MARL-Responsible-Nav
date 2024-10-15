@@ -531,7 +531,7 @@ class GWorld:
             if apples is not None and apple_eaters is not None:
                 if VerboseFlag: print(f'{apples=}')
                 for idx in apple_eaters:
-                    for apple_id, apple in apples:
+                    for apple_id, apple in apples.items():
                         if VerboseFlag: print(f'{apple_id=}, {apple=}')
                         # print(apple)
                         if NewAgentLocations_CurrentFloor[idx][0] == apple[0] and \

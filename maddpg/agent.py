@@ -80,7 +80,7 @@ class MADDPGAgent:
             )
         else:
             self.pop = []
-            agent = MATD3(
+            agent = MADDPG(
                 state_dims=self.state_dim,
                 action_dims=self.action_dim,
                 one_hot=self.one_hot,
@@ -345,8 +345,6 @@ class MADDPGAgent:
             return 0
         # Calculate the total loss
         #print(last_step.values())
-        if(loss is None for loss, _ in last_step.values()):
-            return 0
         total_loss = sum(loss for loss, _ in last_step.values())
         return total_loss
     
