@@ -13,8 +13,11 @@ from agilerl.algorithms.maddpg import MADDPG
 import gymnasium as gym
 import highway_env
 import copy
-from utility.FeAR import count_FeasibleActions,cal_FeAR_ij,cal_MdR
+#from utility.FeAR import count_FeasibleActions,cal_FeAR_ij,cal_MdR, cal_FeAR
+from utility.FeAR import cal_FeAR
 from utility.behavior_regulizer import cal_speed_reward
+
+
 
 class MADDPGAgent:
     def __init__(self,
@@ -158,53 +161,31 @@ class MADDPGAgent:
                     action = cont_actions
 
                 if with_FeAR:
-
-                    #Get MdRs
-                    MdR = cal_MdR(env.unwrapped.controlled_vehicles, env)
-                    #print("MdR=", MdR)
-                    
-                    #Deepcopy current env
-                    before_action_env = copy.deepcopy(env)
-                    
                     # Act in environment
                     action_tuple  = tuple(action.values())
                     action_tuple = tuple(x.item() for x in action_tuple)
                     #print("action = ", action_tuple)
+
+                    FeAR_weight = self.INIT_HP["FeAR_weight"]
+                    FeAR = cal_FeAR(env, action_tuple, self.INIT_HP)
+
                     next_state, reward, termination, truncation, info = env.step(action_tuple)
+                    speed_reward = cal_speed_reward(env)
                     #print(info)
-                    
-                    '''
-                    Question: is the order of controlled vehicles in action same as the order that they are in env.controlled_vehicles?
-                    '''
 
-                    #Calculate FeAR
-                    FeAR = np.zeros(shape = (self.INIT_HP["N_AGENTS"],len(env.unwrapped.road.vehicles)))
-
-                    alpha = 0.5
-                    FeAR_weight = -2.0
-
-                    for i in range(self.INIT_HP["N_AGENTS"]):
-                        for j in range(len(env.unwrapped.road.vehicles) - 1):
-                            FeAR[i,j] += cal_FeAR_ij(i, j, info["action"], MdR, before_action_env)
-
-                    print("FeAR = ")
-                    print(FeAR)
-
-                    reward = (1 - alpha) *  np.array(reward) + alpha * FeAR_weight * np.sum(FeAR, axis=1)
+                    #reward = (1 - alpha) *  np.array(reward) + alpha * FeAR_weight * np.sum(FeAR, axis=1)
+                    reward = np.array(reward) + speed_reward + FeAR_weight * np.sum(FeAR, axis=1)
                     reward = tuple(reward)
 
-                    del before_action_env
-
                 else:
-                    
                     # Act in environment
                     action_tuple  = tuple(action.values())
                     action_tuple = tuple(x.item() for x in action_tuple)
                     next_state, reward, termination, truncation, info = env.step(action_tuple)
                     speed_reward = cal_speed_reward(env)
+                    print("speed_reward = ", speed_reward)
                     reward = np.array(reward) + speed_reward
                     reward = tuple(reward)
-                    print("speed_reward = ", speed_reward)
                     print(info)
 
                 

@@ -1,101 +1,7 @@
 # Libraries
 import numpy as np
 import copy
-from typing import Callable
-from typing import Callable, List, Sequence, Tuple, Union
 
-# General Settings
-# DEFAULT_TARGET_SPEEDS = [20, 25, 30] # m/s
-# DiscreteMetaAction = {0: "SLOWER", 1: "IDLE", 2: "FASTER"}
-# dt = 1 / 15
-Vector = Union[np.ndarray, Sequence[float]]
-
-
-
-def project_polygon(polygon: Vector, axis: Vector):
-    min_p, max_p = None, None
-    for p in polygon:
-        projected = p.dot(axis)
-        if min_p is None or projected < min_p:
-            min_p = projected
-        if max_p is None or projected > max_p:
-            max_p = projected
-    return min_p, max_p
-
-
-def interval_distance(min_a: float, max_a: float, min_b: float, max_b: float):
-    """
-    Calculate the distance between [minA, maxA] and [minB, maxB]
-    The distance will be negative if the intervals overlap
-    """
-    return min_b - max_a if min_a < min_b else min_a - max_b
-
-
-def are_polygons_intersecting(
-    a: Vector, b: Vector, displacement_a: Vector, displacement_b: Vector
-):
-    """
-    Checks if the two polygons are intersecting.
-
-    See https://www.codeproject.com/Articles/15573/2D-Polygon-Collision-Detection
-
-    :param a: polygon A, as a list of [x, y] points
-    :param b: polygon B, as a list of [x, y] points
-    :param displacement_a: velocity of the polygon A
-    :param displacement_b: velocity of the polygon B
-    :return: are intersecting, will intersect, translation vector
-    """
-    intersecting = will_intersect = True
-    min_distance = np.inf
-    translation, translation_axis = None, None
-    for polygon in [a, b]:
-        for p1, p2 in zip(polygon, polygon[1:]):
-            normal = np.array([-p2[1] + p1[1], p2[0] - p1[0]])
-            normal /= np.linalg.norm(normal)
-            min_a, max_a = project_polygon(a, normal)
-            min_b, max_b = project_polygon(b, normal)
-
-            if interval_distance(min_a, max_a, min_b, max_b) > 0:
-                intersecting = False
-
-            velocity_projection = normal.dot(displacement_a - displacement_b)
-            if velocity_projection < 0:
-                min_a += velocity_projection
-            else:
-                max_a += velocity_projection
-
-            distance = interval_distance(min_a, max_a, min_b, max_b)
-            if distance > 0:
-                will_intersect = False
-            if not intersecting and not will_intersect:
-                break
-            if abs(distance) < min_distance:
-                min_distance = abs(distance)
-                d = a[:-1].mean(axis=0) - b[:-1].mean(axis=0)  # center difference
-                translation_axis = normal if d.dot(normal) > 0 else -normal
-
-    if will_intersect:
-        translation = min_distance * translation_axis
-    return intersecting, will_intersect, translation
-
-
-def _is_colliding(ego, other, delta_speed, dt=1/15):
-    # Fast spherical pre-check
-    if (
-        np.linalg.norm(other.position - ego.position)
-        > (ego.diagonal + other.diagonal) / 2 + ego.speed * dt
-    ):
-        return (
-            False,
-            False,
-            np.zeros(
-                2,
-            ),
-        )
-    # Accurate rectangular check
-    return are_polygons_intersecting(
-        ego.polygon(), other.polygon(), (ego.velocity +delta_speed) * dt, other.velocity * dt
-    )
 
 
 def count_FeasibleActions(i, j, action, env, DiscreteMetaAction={0: "SLOWER", 1: "IDLE", 2: "FASTER"}):
@@ -189,11 +95,41 @@ def cal_MdR(agents, env, DEFAULT_TARGET_SPEEDS=[0, 4.5, 9]):
     '''
 
     MdR = []
+
     for agent in agents:
+
         MdR_i = 2 if agent.speed <= (DEFAULT_TARGET_SPEEDS[0] + 1.0) else (0 if agent.speed >= (DEFAULT_TARGET_SPEEDS[2] - 2.0) else 1)
+
         nearest_vehicle =  env.unwrapped.road.close_objects_to(agent, env.PERCEPTION_DISTANCE, count=1, see_behind=False, sort=True, vehicles_only=True)
         if nearest_vehicle != [] and np.linalg.norm(np.array(nearest_vehicle[0].position) - np.array(agent.position)) < 10:
             MdR_i = 0
+        
         MdR.append(MdR_i)
 
     return MdR
+
+
+def cal_FeAR(env, action_tuple, INIT_HP):
+    '''
+    Calculate FeAR
+    '''
+
+    #Get MdRs
+    MdR = cal_MdR(env.unwrapped.controlled_vehicles, env)
+    #print("MdR=", MdR)
+                    
+    #Deepcopy current env
+    before_action_env = copy.deepcopy(env)
+                         
+    FeAR = np.zeros(shape = (INIT_HP["N_AGENTS"],len(env.unwrapped.road.vehicles)))
+
+    for i in range(INIT_HP["N_AGENTS"]):
+        for j in range(len(env.unwrapped.road.vehicles) - 1):
+            FeAR[i,j] += cal_FeAR_ij(i, j, action_tuple, MdR, before_action_env)
+
+    print("FeAR = ")
+    print(FeAR)
+
+    del before_action_env
+
+    return FeAR

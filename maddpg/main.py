@@ -27,7 +27,7 @@ if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Define the network configuration
-    '''
+    
     NET_CONFIG = {
         "arch": "mlp",  # Network architecture
         "hidden_size": [64, 64],  # Actor hidden size
@@ -40,7 +40,7 @@ if __name__ == '__main__':
         "kernel_size": [2, 2],
         "stride_size": [2, 2]
     }
-
+    '''
    
 
     # Define the initial hyperparameters
@@ -65,10 +65,12 @@ if __name__ == '__main__':
         "LEARN_STEP": 5,  # Learning frequency
         "LOAD_AGENT": False, # Load previous trained agent
         "SAVE_AGENT": False, # Save the agent
-        "LOGGING": True,
+        "LOGGING": False,
         "RESUME": False,
         "RESUME_ID": "6v7adywb",
-        "WITH_FEAR": False
+        "WITH_FEAR": True,
+        "FeAR_weight": -2.0,
+        "FeAR_trajectory_length": 5
     }
     
     # Path & filename to save or load
@@ -138,16 +140,17 @@ if __name__ == '__main__':
                },
         "initial_vehicle_count": 10,
         "controlled_vehicles": 4,
-        "collision_reward": -5,
-        "high_speed_reward": 1,
-        "arrived_reward": 1,
+        "collision_reward": -20,
+        "high_speed_reward": 0,
+        "arrived_reward": 10,
         "policy_frequency": INIT_HP["POLICY_FREQ"]
     }
     
 
     # Define the simple spread environment as a parallel environment
-    env = gym.make("intersection-multi-agent-v1", render_mode=None, config=config)
-    #env = IntersectionEnv(config=config2)
+    #env = gym.make("intersection-multi-agent-v1", render_mode=None, config=config)
+    env = IntersectionEnv(config=config2)
+    #env.unwrapped.MDPVehicle.target_speeds =  np.array([0,4.5,9])
     #env.unwrapped.config.update(config2)
     print(env.unwrapped.config)
     #env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
