@@ -29,10 +29,10 @@ if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Define the network configuration
-    '''
+    
     NET_CONFIG = {
         "arch": "mlp",  # Network architecture
-        "hidden_size": [64, 64],  # Actor hidden size
+        "hidden_size": [128, 128],  # Actor hidden size
     }
     '''
     NET_CONFIG = {
@@ -43,7 +43,7 @@ if __name__ == '__main__':
         "stride_size": [2, 2]
     }
     
-   
+   '''
 
     # Define the initial hyperparameters
     INIT_HP = {
@@ -52,7 +52,7 @@ if __name__ == '__main__':
         "CHANNELS_LAST": False,
         "BATCH_SIZE": 128,  # Batch size
         "O_U_NOISE": False,  # Ornstein Uhlenbeck action noise
-        "EXPL_NOISE": 0.15,  # Action noise scale
+        "EXPL_NOISE": 0.2,  # Action noise scale
         "MEAN_NOISE": 0.0,  # Mean action noise
         "THETA": 0.15,  # Rate of mean reversion in OU noise
         "DT": 0.01,  # Timestep for OU noise
@@ -64,18 +64,18 @@ if __name__ == '__main__':
         "TAU": 0.01,  # For soft update of target parameters
         "POLICY_FREQ": 1,  # Policy frequnecy
         "POP_SIZE": 1,  # Population size, 1 if we do not want to use Hyperparameter Optimization
-        "MAX_EPISODES": 2000,
+        "MAX_EPISODES": 500,
         "TRAIN_STEPS": 200,
         "LOAD_AGENT": False, # Load previous trained agent
-        "SAVE_AGENT": True, # Save the agent
-        "LOGGING": True,
+        "SAVE_AGENT": False, # Save the agent
+        "LOGGING": False,
         "RESUME": False,
-        "RESUME_ID": "a7f32o4m"
+        "RESUME_ID": "9mhj8045"
     }
     
     # Path & filename to save or load
-    path = "./models/custom/TD3"
-    filename = "MATD3_agent.pt"
+    path = "./models/custom/mlp"
+    filename = "MADDPG_MLP_agent.pt"
 
     # Number of parallel environment
     num_envs = 1

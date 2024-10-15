@@ -2,6 +2,7 @@ import gymnasium as gym
 from gymnasium import spaces
 
 import numpy as np
+import math
 import json
 from . import grid_world
 from . import custom_agent
@@ -10,7 +11,7 @@ from . import Responsibility
 from custom.grid_world import GWorld
 # from stable_baselines3.common.env_checker import check_env
 import numpy as np
-rng = np.random.default_rng(seed=0)
+rng = np.random.default_rng()
 N_DISCRETE_ACTIONS = 9
 
 inference = False
@@ -41,6 +42,7 @@ class CustomEnv(gym.Env):
         self.observation_space = spaces.Box(low=-1.0, high=16.0,
                                             shape=(10, 16), dtype=np.float64)
         self.num_agents = 1
+        self.prev_distance = []
     
 
 
@@ -64,6 +66,12 @@ class CustomEnv(gym.Env):
         info = {}
         terminated = False
         truncated = False
+        distance = []
+        
+        apple_loc = next(iter(self.apples.values()))
+
+        for loc in self.World.AgentLocations:
+            distance.append(manhattan_dist(loc, apple_loc))
         
 
         # OBSERVATIONS   Shape (10,16)
@@ -78,7 +86,7 @@ class CustomEnv(gym.Env):
         self.episode_length += 1
 
         if agent_crashes[0]:
-            reward -= 50
+            reward -= 20
             terminated = True
 
         if len(apples_caught) == 1:
@@ -86,14 +94,17 @@ class CustomEnv(gym.Env):
             # key = list(self.apples)[apple_idx]
             self.apples.pop(apple_id)
             self.apples_eaten += 1
-            reward += 100
-            if self.apples_eaten == 4:
+            reward += 10
+            if not self.apples:
                 truncated = True
         
-        if restricted_moves[0]:
-            reward -= 1
+        #if restricted_moves[0]:
+        #    reward -= 0.1
         #else:
         #    reward += 0.1
+
+        if distance[0] < self.prev_distance[0]:
+            reward += 0.1
 
         self.episode_reward += reward    
         observation = self.World.WorldState
@@ -112,6 +123,8 @@ class CustomEnv(gym.Env):
             #self.episode_reward = 0  # Reset for the next episode
             #self.episode_length = 0
         #inference = True
+
+        self.prev_distance = distance
         
         if inference: print(observation, ", ")
         
@@ -215,11 +228,12 @@ class CustomEnv(gym.Env):
         valid_locations = np.transpose(np.where(self.Region > 0))
         # print(valid_locations)
         # print(valid_locations.shape)
-        self.apples = valid_locations[[0, 14, 54, -1]]
-        self.apples = {"apple_1": (0,0),
-                       "apple_2": (0,15),
-                       "apple_3": (9,0),
-                       "apple_4": (9,15)}
+        #self.apples = valid_locations[[0, 14, 54, -1]]
+        #self.apples = {"apple_1": (0,0),
+        #               "apple_2": (0,15),
+        #               "apple_3": (9,0),
+        #               "apple_4": (9,15)}
+        self.apples = {"apple_0": (9,15)}
 
             
         # self.apples = [(0,15),(9,0),(9,15),(0,0)]
@@ -234,8 +248,10 @@ class CustomEnv(gym.Env):
         # observation[9,0] += 9
         # observation[0,15] += 9
         # observation[0,0] += 9
-
-
+        dist = []
+        for loc in self.World.AgentLocations:
+            dist.append(manhattan_dist(loc, next(iter(self.apples.values()))))
+        self.prev_distance = dist
 
 
 
@@ -245,4 +261,7 @@ class CustomEnv(gym.Env):
 #     pass
 #   def close (self):
 #     pass
+
+def manhattan_dist(loc_1, loc_2):
+    return sum(abs(a - b) for a, b in zip(loc_1, loc_2))
 
