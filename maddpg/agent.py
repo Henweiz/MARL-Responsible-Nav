@@ -14,6 +14,7 @@ import gymnasium as gym
 import highway_env
 import copy
 from utility.FeAR import count_FeasibleActions,cal_FeAR_ij,cal_MdR
+from utility.behavior_regulizer import cal_speed_reward
 
 class MADDPGAgent:
     def __init__(self,
@@ -200,6 +201,10 @@ class MADDPGAgent:
                     action_tuple  = tuple(action.values())
                     action_tuple = tuple(x.item() for x in action_tuple)
                     next_state, reward, termination, truncation, info = env.step(action_tuple)
+                    speed_reward = cal_speed_reward(env)
+                    reward = np.array(reward) + speed_reward
+                    reward = tuple(reward)
+                    print("speed_reward = ", speed_reward)
                     print(info)
 
                 
