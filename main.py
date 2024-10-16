@@ -60,7 +60,7 @@ if __name__ == '__main__':
 
     # Path & filename to save or load
     path = "./models/custom/MADDPG"
-    filename = "MADDPG_5k.pt"
+    filename = "MADDPG_5k_2.pt"
 
     # Define the network configuration
     if INIT_HP["ARCH"] == "mlp":
@@ -170,7 +170,7 @@ if __name__ == '__main__':
         total_steps += steps
         pbar.update(1)
         if INIT_HP["LOGGING"]:
-            logger.log(np.mean(mean_scores), agents.total_loss(), steps)
+            logger.log(np.mean(mean_scores), agents.total_loss(), steps, global_steps=total_steps, fear=fear)
 
         print(f"--- Episode: {i} ---")
         print(f"Steps {steps}")

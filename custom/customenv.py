@@ -44,7 +44,7 @@ COLOR_MAP = {
 class CustomEnv(gym.Env):
     """Custom Environment that follows gym interface"""
 
-    def __init__(self, render=False):
+    def __init__(self, render_on=False):
         super(CustomEnv, self).__init__()
         # Define action and observation space
         # They must be gym.spaces objects
@@ -55,9 +55,9 @@ class CustomEnv(gym.Env):
                                             shape=(10, 16), dtype=np.float64)
         self.num_agents = 1
         self.prev_distance = []
-        self.render = render
+        self.render_on = render_on
 
-        if render:
+        if render_on:
             self.window_width = 800
             self.window_height = 500
             self.cell_size = 50
@@ -324,7 +324,7 @@ class CustomEnv(gym.Env):
         self.clock.tick(10)
 
     def close (self):
-        if self.render and self.window is not None:
+        if self.render_on and self.window is not None:
             pygame.display.quit()
             pygame.quit()
 

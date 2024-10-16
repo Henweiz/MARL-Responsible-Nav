@@ -59,7 +59,7 @@ if __name__ == "__main__":
 
     # Path & filename to save or load
     path = "./models/custom/MADDPG"
-    filename = "MADDPG_5k.pt"
+    filename = "MADDPG_5k_2.pt"
 
     # Define the network configuration
     if INIT_HP["ARCH"] == "mlp":
@@ -85,7 +85,7 @@ if __name__ == "__main__":
     #env = gym.make("intersection-multi-agent-v1", render_mode=None, config = config2)
     #print(env.unwrapped.config)
     #env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
-    env = CustomEnv(render=True)
+    env = CustomEnv(render_on=True)
     obs, info = env.reset(INIT_HP["SEED"])
     #env.num_agents = env.unwrapped.config['controlled_vehicles']
 
@@ -115,7 +115,7 @@ if __name__ == "__main__":
 
     
 
-    for videos in range(5):
+    for videos in range(10):
         state, info = env.reset()
         termination = truncation = False
         while not (termination or truncation):
