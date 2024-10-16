@@ -194,9 +194,9 @@ class MADDPGAgent:
 
                 # Add FeAR to our reward    
                 fear_weight = -5.0
-                reward += (fear_weight * info["fear"])
+                # reward += (fear_weight * info["fear"])
                 reward_dict = self.make_dict([reward])
-                fear_score += info["fear"]  
+                # fear_score += info["fear"]  
                 scores += np.sum(np.array(list(reward_dict.values())).transpose(), axis=-1)
 
                 total_steps += num_envs

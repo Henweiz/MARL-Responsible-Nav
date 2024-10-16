@@ -5,6 +5,7 @@ import pygame
 import numpy as np
 import math
 import json
+import pygame
 from . import grid_world
 from . import custom_agent
 from custom.custom_agent import CustomAgent
@@ -27,15 +28,13 @@ num_agents = Scenario['N_Agents']
 ActionNames, ActionMoves = custom_agent.DefineActions()
 
 print('N_Agents : ',num_agents)
-
-# Define colors
 COLOR_MAP = {
     -1: (0, 0, 0),   # Black for inactive cells
     0: (255, 255, 255), # White for blank cells
-    1: (255, 0, 0),  # Red for the learned agent
+    1: (255, 215, 0),  # Red for the learned agent
     2: (0, 0, 255),  # Blue for other agents
     3: (0, 0, 255),  # Blue for another agent
-    10: (255, 215, 0), # Gold for the apple
+    9: (255, 0, 0), # Gold for the apple
     11: (255, 0 ,0),
     12: (0, 0, 255),  
     13: (0, 0, 255)
@@ -44,9 +43,8 @@ COLOR_MAP = {
 
 class CustomEnv(gym.Env):
     """Custom Environment that follows gym interface"""
-    metadata = {'render.modes': ['human']}
 
-    def __init__(self):
+    def __init__(self, render=False):
         super(CustomEnv, self).__init__()
         # Define action and observation space
         # They must be gym.spaces objects
@@ -57,8 +55,19 @@ class CustomEnv(gym.Env):
                                             shape=(10, 16), dtype=np.float64)
         self.num_agents = 1
         self.prev_distance = []
-        self.window_width = 800
-        self.window_height = 500
+
+        if render:
+            self.window_width = 800
+            self.window_height = 500
+            self.cell_size = 50
+            self.window = None
+            self.clock = pygame.time.Clock()
+            pygame.init()
+            pygame.display.init()
+            self.apple_image = pygame.image.load("apple.png")  # Load the apple image
+            self.apple_image = pygame.transform.scale(self.apple_image, (self.cell_size, self.cell_size))
+
+
     
 
 
@@ -67,6 +76,10 @@ class CustomEnv(gym.Env):
         Action4Agents = self.World.SelectActionsForAll(defaultAction = self.defaultAction, InputActionID4Agents = self.SpecificAction4Agents)
 #         print('SpecificAction Inputs 4Agents :', self.SpecificAction4Agents)
 #         print('Actions chosen for Agents :',Action4Agents)
+        
+        Action4Agents[0] = (0, action[0])
+        
+        # FeAR_vals,ValidMoves_MdR,ValidMoves_action1,ValidityOfMoves_Mdr,ValidityOfMoves_action1 =  Responsibility.FeAR_4_one_actor(self.World, Action4Agents, self.MdR4Agents) 
         RL_agentID = 0
         no_fear = True
         
@@ -138,7 +151,7 @@ class CustomEnv(gym.Env):
                 'l': self.episode_length    # Length of the episode
             },
             "restricted": restricted_moves[0],
-            "fear": np.sum(FeAR_vals)
+            # "fear": np.sum(FeAR_vals)
         }    
 
             #self.episode_reward = 0  # Reset for the next episode
@@ -146,7 +159,7 @@ class CustomEnv(gym.Env):
         #inference = True
 
         self.prev_distance = distance
-        
+        self.observation = observation
         if inference: print(observation, ", ")
 
             
@@ -276,8 +289,44 @@ class CustomEnv(gym.Env):
 
 
         self.observation = observation
+        self.observation = observation
         return (observation, {})  # reward, done, info can't be included
     
+    def render(self, mode='human'):
+        return self.render_frame()
+    
+    def render_frame(self):
+        if self.window is None:
+            self.window = pygame.display.set_mode((self.window_width, self.window_height))
+
+        canvas = pygame.Surface((self.window_width, self.window_height))
+        canvas.fill((0, 0, 0))
+
+        for i, row in enumerate(self.observation):
+            for j, cell_value in enumerate(row):
+                color = COLOR_MAP.get(int(cell_value), (255, 255, 255))
+                if color == (255, 0, 0):  
+                    pygame.draw.rect(canvas, (255, 255, 255), pygame.Rect(j * self.cell_size, i * self.cell_size, self.cell_size, self.cell_size))
+                    canvas.blit(self.apple_image, (j * self.cell_size, i * self.cell_size))  # Draw apple image
+                elif color == (255, 215, 0):
+                    pygame.draw.rect(canvas, (255, 255, 255), pygame.Rect(j * self.cell_size, i * self.cell_size, self.cell_size, self.cell_size))
+                    pygame.draw.circle(canvas, color, (j * self.cell_size + self.cell_size // 2, i * self.cell_size + self.cell_size // 2), self.cell_size // 2)
+                elif color == (0, 0, 255):
+                    pygame.draw.rect(canvas, (255, 255, 255), pygame.Rect(j * self.cell_size, i * self.cell_size, self.cell_size, self.cell_size))
+                    pygame.draw.circle(canvas, color, (j * self.cell_size + self.cell_size // 2, i * self.cell_size + self.cell_size // 2), self.cell_size // 2)
+                else:
+                    pygame.draw.rect(canvas, color, pygame.Rect(j * self.cell_size, i * self.cell_size, self.cell_size, self.cell_size))
+
+        self.window.blit(canvas, canvas.get_rect())
+        pygame.event.pump()
+        pygame.display.update()
+        self.clock.tick(10)
+
+    def close (self):
+        if self.window is not None and render:
+            pygame.display.quit()
+            pygame.quit()
+
     def close_agents(self, agents, agent_i, max_dist):
         agent_list = []
         for agentID, agent_action in agents:
@@ -287,36 +336,7 @@ class CustomEnv(gym.Env):
             if manhattan_dist(self.World.AgentLocations[agent_i], self.World.AgentLocations[agentID]) <= max_dist:
                 agent_list.append((agentID, agent_action))
         return agent_list
-#   def render(self, mode='human'):
-#     pass
-#   def close (self):
-#     pass
-    def render(self, mode='human'):
-        return self.render_frame()
-    
-    def render_frame(self):
-        pygame.init()
-        pygame.display.init()
-        self.window = pygame.display.set_mode((self.window_width, self.window_height))
-        canvas = pygame.Surface((self.window_width, self.window_height))
-        canvas.fill((0, 0, 0))
-        cell_size = 50
 
-        for i, row in enumerate(self.observation):
-            for j, cell_value in enumerate(row):
-                color = COLOR_MAP.get(int(cell_value), (255, 255, 255))
-                pygame.draw.rect(canvas, color, pygame.Rect(j * cell_size, i * cell_size, cell_size, cell_size))
-
-        self.window.blit(canvas, canvas.get_rect())
-        pygame.event.pump()
-        pygame.display.update()
-
-        
-
-    def close (self):
-        if self.window is not None:
-            pygame.display.quit()
-            pygame.quit()
 
 def manhattan_dist(loc_1, loc_2):
     return sum(abs(a - b) for a, b in zip(loc_1, loc_2))

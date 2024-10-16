@@ -618,7 +618,7 @@ class GWorld:
     # ----------------------------------------------------------------------------------------------- #
 
 
-def LoadJsonScenario(json_filename='custom\Scenarios.json', scenario_name='GameMap'):
+def LoadJsonScenario(json_filename='custom/Scenarios.json', scenario_name='GameMap'):
     # Reading Dictionary from JSON file
 
     with open(json_filename) as json_file:
