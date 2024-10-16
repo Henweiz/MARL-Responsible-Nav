@@ -55,6 +55,7 @@ class CustomEnv(gym.Env):
                                             shape=(10, 16), dtype=np.float64)
         self.num_agents = 1
         self.prev_distance = []
+        self.render = render
 
         if render:
             self.window_width = 800
@@ -323,7 +324,7 @@ class CustomEnv(gym.Env):
         self.clock.tick(10)
 
     def close (self):
-        if self.window is not None and render:
+        if self.render and self.window is not None:
             pygame.display.quit()
             pygame.quit()
 
