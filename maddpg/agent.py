@@ -125,13 +125,12 @@ class MADDPGAgent:
             scores = np.zeros(num_envs)
             completed_episode_scores = []
             steps = 0
+            fear_score = 0
             
-
-
             for idx_step in range(evo_steps // num_envs):
-                #print(state.shape)
+                
+                #Update observation to fit into our NN
                 if self.NET_CONFIG["arch"] == "mlp":
-                    #print("check")
                     if self.INIT_HP["CUSTOM_ENV"]:
                         state = [np.concatenate(state)] 
                     else:
@@ -139,23 +138,19 @@ class MADDPGAgent:
                 else:
                     state = state[np.newaxis, :, :]
                 
-                    
- 
-                
                 state_dict = self.make_dict(state)
                 if self.NET_CONFIG["arch"] == "cnn":
                     for i in range(self.INIT_HP["N_AGENTS"]):
                         obs = state_dict[f'agent_{i}']
-                        #print(obs.shape)
                         state_dict[f'agent_{i}'] = obs[np.newaxis, :, :]
-                #print(state_dict)
                 
                 if self.INIT_HP["CHANNELS_LAST"]:
                     state_dict = {
                         agent_id: np.moveaxis(s, [-1], [-3])
                         for agent_id, s in state_dict.items()
                     }
-                #print("Step: ", idx_step)
+
+                # Get action mask from the environment
                 agent_mask = info["agent_mask"] if "agent_mask" in info.keys() else None
                 env_defined_actions = (
                     info["env_defined_actions"]
@@ -163,8 +158,6 @@ class MADDPGAgent:
                     else None
                 )
 
-                
-                #print(state_dict.values.shape)
                 # Get next action from agent
                 cont_actions, discrete_action = agent.get_action(
                     states=state_dict,
@@ -189,6 +182,7 @@ class MADDPGAgent:
                 if self.INIT_HP["CUSTOM_ENV"] and self.NET_CONFIG["arch"] == "mlp":
                     next_state = [np.concatenate(next_state)]   
                 
+                # Flatten next state observation
                 if self.NET_CONFIG["arch"] == "mlp":
                     next_state_dict = self.make_dict([x.flatten() for x in next_state])
                 else:
@@ -197,13 +191,14 @@ class MADDPGAgent:
                         agent_id: ns[np.newaxis, :, :]
                         for agent_id, ns in next_state_dict.items()
                     }
-                reward_dict = self.make_dict([reward])
-                #print(reward_dict)
-                termination_dict = self.make_dict([termination])
-            
-                
 
+                # Add FeAR to our reward    
+                fear_weight = -5.0
+                reward += (fear_weight * info["fear"])
+                reward_dict = self.make_dict([reward])
+                fear_score += info["fear"]  
                 scores += np.sum(np.array(list(reward_dict.values())).transpose(), axis=-1)
+
                 total_steps += num_envs
                 steps += num_envs
 
@@ -214,9 +209,9 @@ class MADDPGAgent:
                         for agent_id, ns in next_state_dict.items()
                     }
                 
-                #print(cont_actions)
+                termination_dict = self.make_dict([termination])
                 cont_actions = {k: np.squeeze(v) for (k,v) in cont_actions.items()}
-                #print(cont_actions)
+
                 # Save experiences to replay buffer
                 self.memory.save_to_memory(
                     state_dict,
@@ -254,18 +249,16 @@ class MADDPGAgent:
 
                 state = next_state
 
-                # Calculate scores and reset noise for finished episodes
+                # Return when the episode is finished
                 reset_noise_indices = []
                 term_array = np.array(list(termination_dict.values())).transpose()
                 for i in range(num_envs):
                     if all(term_array) or truncation:
-                        #print(info)
-                        
                         reset_noise_indices.append(i)
                             
                         completed_episode_scores.append(scores[i])
                         agent.scores.append(scores[i])
-                        #scores[i] = 0
+
                 
                 agent.reset_action_noise(reset_noise_indices)
                 if all(term_array) or truncation:
@@ -274,8 +267,6 @@ class MADDPGAgent:
                     completed_episode_scores.append(scores[0])
                     agent.scores.append(scores[0])
                 
-                
-
             agent.steps[-1] += steps
             pop_episode_scores.append(completed_episode_scores)
 
@@ -288,8 +279,9 @@ class MADDPGAgent:
         for agent in self.pop:
             agent.steps.append(agent.steps[-1])
         
-        return total_steps, pop_episode_scores
+        return total_steps, pop_episode_scores, fear_score
 
+    # Evaluate for fitness of the agent (Used in HPO)
     def evaluate_agent(self, env, eval_steps=None, eval_loop=1):
         # Evaluate population
         fitnesses = [
@@ -341,14 +333,16 @@ class MADDPGAgent:
         # Get the last step (last dictionary in the list)
         try:
             last_step = self.loss[-1]
+        # No learning happened yet, so we return 0    
         except:
             return 0
+        
         # Calculate the total loss
-        #print(last_step.values())
         total_loss = sum(loss for loss, _ in last_step.values())
         return total_loss
     
-    def make_dict(self,tuple):
+    # Make a dictionary with agent ID and their corresponding tuple
+    def make_dict(self, tuple):
         dict = {}
         for i in range(self.INIT_HP["N_AGENTS"]):
             dict[f'agent_{i}'] = tuple[i]

@@ -51,12 +51,16 @@ class CustomEnv(gym.Env):
         Action4Agents = self.World.SelectActionsForAll(defaultAction = self.defaultAction, InputActionID4Agents = self.SpecificAction4Agents)
 #         print('SpecificAction Inputs 4Agents :', self.SpecificAction4Agents)
 #         print('Actions chosen for Agents :',Action4Agents)
-
-       # FeAR_vals,ValidMoves_MdR,ValidMoves_action1,ValidityOfMoves_Mdr,ValidityOfMoves_action1 =  Responsibility.FeAR(self.World, Action4Agents, self.MdR4Agents) 
+        
+        Action4Agents[0] = (0, action[0])
+        
+        FeAR_vals,ValidMoves_MdR,ValidMoves_action1,ValidityOfMoves_Mdr,ValidityOfMoves_action1 =  Responsibility.FeAR_4_one_actor(self.World, Action4Agents, self.MdR4Agents) 
         #FeAL_vals, ValidMoves_moveDeRigueur_FeAL, ValidMoves_action_FeAL, \
         #   ValidityOfMoves_Mdr_FeAL, ValidityOfMoves_action_FeAL =  Responsibility.FeAL(self.World, Action4Agents, self.MdR4Agents)
+        
+        
                 
-        Action4Agents[0] = (0, action)
+        
 #         print("Action4AGENTS: ----- ", Action4Agents)
         # print(self.apples)
 
@@ -75,18 +79,11 @@ class CustomEnv(gym.Env):
         
 
         # OBSERVATIONS   Shape (10,16)
-
-        # observation[0,0] += 9
-        # observation[0,15] += 9
-        # observation[9,0] += 9
-        # observation[9,15] += 9
-        
-        
         
         self.episode_length += 1
 
         if agent_crashes[0]:
-            reward -= 20
+            reward -= 10
             terminated = True
 
         if len(apples_caught) == 1:
@@ -94,7 +91,7 @@ class CustomEnv(gym.Env):
             # key = list(self.apples)[apple_idx]
             self.apples.pop(apple_id)
             self.apples_eaten += 1
-            reward += 10
+            reward += 20
             if not self.apples:
                 truncated = True
         
@@ -110,16 +107,15 @@ class CustomEnv(gym.Env):
         observation = self.World.WorldState
         for loc in self.apples.values():
             observation[loc] += 9
-        
-        if terminated or truncated:
-            info = {
-                'episode': {
-                    'r': self.episode_reward,  # Total reward for the episode
-                    'l': self.episode_length    # Length of the episode
-                },
-                #"agent_mask_env": {restricted_moves}
-                "restricted": {restricted_moves[0]}
-            }
+        info = {
+            'episode': {
+                'r': self.episode_reward,  # Total reward for the episode
+                'l': self.episode_length    # Length of the episode
+            },
+            "restricted": restricted_moves[0],
+            "fear": np.sum(FeAR_vals)
+        }    
+
             #self.episode_reward = 0  # Reset for the next episode
             #self.episode_length = 0
         #inference = True

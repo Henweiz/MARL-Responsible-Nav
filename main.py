@@ -28,31 +28,16 @@ if __name__ == '__main__':
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Define the network configuration
-    
-    NET_CONFIG = {
-        "arch": "mlp",  # Network architecture
-        "hidden_size": [128, 128],  # Actor hidden size
-    }
-    '''
-    NET_CONFIG = {
-        "arch": "cnn",  # Network architecture
-        "hidden_size": [128, 128],  # Actor hidden size
-        "channel_size": [32, 64],
-        "kernel_size": [2, 2],
-        "stride_size": [2, 2]
-    }
-    
-   '''
-
     # Define the initial hyperparameters
     INIT_HP = {
         # Swap image channels dimension from last to first [H, W, C] -> [C, H, W]
         "CUSTOM_ENV": True,
+        "ARCH": "mlp",
+        "SEED": 42,
         "CHANNELS_LAST": False,
         "BATCH_SIZE": 128,  # Batch size
         "O_U_NOISE": False,  # Ornstein Uhlenbeck action noise
-        "EXPL_NOISE": 0.2,  # Action noise scale
+        "EXPL_NOISE": 0.1,  # Action noise scale
         "MEAN_NOISE": 0.0,  # Mean action noise
         "THETA": 0.15,  # Rate of mean reversion in OU noise
         "DT": 0.01,  # Timestep for OU noise
@@ -64,58 +49,45 @@ if __name__ == '__main__':
         "TAU": 0.01,  # For soft update of target parameters
         "POLICY_FREQ": 1,  # Policy frequnecy
         "POP_SIZE": 1,  # Population size, 1 if we do not want to use Hyperparameter Optimization
-        "MAX_EPISODES": 500,
+        "MAX_EPISODES": 200,
         "TRAIN_STEPS": 200,
         "LOAD_AGENT": False, # Load previous trained agent
         "SAVE_AGENT": False, # Save the agent
         "LOGGING": False,
         "RESUME": False,
-        "RESUME_ID": "9mhj8045"
+        "RESUME_ID": "nhdokura"
     }
-    
+
     # Path & filename to save or load
-    path = "./models/custom/mlp"
-    filename = "MADDPG_MLP_agent.pt"
+    path = "./models/custom/fear5"
+    filename = "MADDPG_5_fear_agent.pt"
+
+    # Define the network configuration
+    if INIT_HP["ARCH"] == "mlp":
+        print("Using MLP architecture")
+        NET_CONFIG = {
+            "arch": "mlp",  # Network architecture
+            "hidden_size": [128, 128],  # Actor hidden size
+        }
+    else:
+        print("Using CNN architecture")
+        NET_CONFIG = {
+            "arch": "cnn",  # Network architecture
+            "hidden_size": [128, 128],  # Actor hidden size
+            "channel_size": [32, 64],
+            "kernel_size": [2, 2],
+            "stride_size": [2, 2]
+        }
 
     # Number of parallel environment
     num_envs = 1
-
-    '''
-    config2 = {
-        "id": "intersection-multi-agent-v1",
-        "observation": {
-            "type": "MultiAgentObservation",
-            "observation_config": {
-                "type": "OccupancyGrid",
-                    "vehicles_count": 15,
-                    "features": ["presence", "x", "y", "vx", "vy", "cos_h", "sin_h"],
-                    "features_range": {
-                        "x": [-100, 100],
-                        "y": [-100, 100],
-                        "vx": [-20, 20],
-                        "vy": [-20, 20]
-                    },
-                    "grid_size": [[-32, 32], [-32, 32]],
-                    "grid_step": [2, 2],
-                    "absolute": False
-            }
-        },
-        "action": {"type": "MultiAgentAction",
-               "action_config": {"type": "DiscreteMetaAction",
-                                 "lateral": False}},
-        "initial_vehicle_count": 20,
-        "controlled_vehicles": 1,
-        "policy_frequency": 15
-    }
-    '''
-    
 
     # Define the simple spread environment as a parallel environment
     #env = gym.make("intersection-multi-agent-v1", render_mode=None, config = config2)
     #print(env.unwrapped.config)
     #env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
     env = CustomEnv()
-    obs, info = env.reset(seed=42)
+    obs, info = env.reset(INIT_HP["SEED"])
     #env.num_agents = env.unwrapped.config['controlled_vehicles']
 
     env.agents = [f'agent_{i}' for i in range(env.num_agents)]
@@ -131,6 +103,7 @@ if __name__ == '__main__':
             "Discount": INIT_HP["GAMMA"],
             "Memory size": INIT_HP["MEMORY_SIZE"],
             "Learn step": INIT_HP["LEARN_STEP"],
+            "Train step": INIT_HP["TRAIN_STEPS"],
             "Tau": INIT_HP["TAU"],
             "Population size": INIT_HP["POP_SIZE"]
         }
@@ -148,20 +121,14 @@ if __name__ == '__main__':
     else:
         obs = addDim(obs)
         state_dim = [obs.shape for agent, _ in enumerate(env.agents)]
-        #state_dim = [np.moveaxis(np.zeros(state_dim[agent]), [-1], [-3]).shape for agent, _ in enumerate(env.agents)]
         print(state_dim)
         one_hot = False
-    try:
-        action_dim = [env.action_space.n for agent, _ in enumerate(env.agents)]
-        print(action_dim)
-        INIT_HP["DISCRETE_ACTIONS"] = True
-        INIT_HP["MAX_ACTION"] = None
-        INIT_HP["MIN_ACTION"] = None
-    except Exception:
-        action_dim = [env.action_space(agent).shape[0] for agent in env.agents]
-        INIT_HP["DISCRETE_ACTIONS"] = False
-        INIT_HP["MAX_ACTION"] = [env.action_space(agent).high for agent in env.agents]
-        INIT_HP["MIN_ACTION"] = [env.action_space(agent).low for agent in env.agents]
+
+    action_dim = [env.action_space.n for agent, _ in enumerate(env.agents)]
+    print(action_dim)
+    INIT_HP["DISCRETE_ACTIONS"] = True
+    INIT_HP["MAX_ACTION"] = None
+    INIT_HP["MIN_ACTION"] = None
 
     # Not applicable to MPE environments, used when images are used for observations (Atari environments)
     if INIT_HP["CHANNELS_LAST"]:
@@ -177,6 +144,7 @@ if __name__ == '__main__':
 
     if INIT_HP["LOAD_AGENT"]:
         agents.load_checkpoint(path, filename)
+        print("Agent succesfully loaded!")
 
     # Define training loop parameters
     episodes = INIT_HP["MAX_EPISODES"]  # Max steps
@@ -187,13 +155,12 @@ if __name__ == '__main__':
     eval_loop = 1  # Number of evaluation episodes
 
     total_steps = agents.pop[0].steps[-1]
-    elite = None
 
     # TRAINING LOOP
     print("Training...")
     pbar = trange(episodes, unit="episode")
     for i in range(episodes):
-        steps, pop_episode_scores = agents.train(num_envs, evo_steps, learning_delay, env)
+        steps, pop_episode_scores, fear = agents.train(num_envs, evo_steps, learning_delay, env)
         #fitnesses = agents.evaluate_agent(env, eval_steps)
         mean_scores = [
             np.mean(episode_scores) if len(episode_scores) > 0 else 0.0
@@ -209,10 +176,11 @@ if __name__ == '__main__':
         print(f"Steps {steps}")
         print(f"Scores: {mean_scores}")
         print(f"Loss: {agents.total_loss()}")
-        #print(f'Fitnesses: {["%.2f"%fitness for fitness in fitnesses]}')
+        print(f'Fear: {fear}')
     
     pbar.close()
     env.close()
+    
     if INIT_HP["SAVE_AGENT"]:
         agents.save_checkpoint(path, filename)
         print("Succesfully saved the agent")
