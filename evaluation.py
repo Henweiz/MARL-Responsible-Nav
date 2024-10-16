@@ -1,6 +1,6 @@
 import gymnasium as gym
 from gymnasium.wrappers import RecordVideo
-from agent import MADDPGAgent
+from maddpg.agent import MADDPGAgent
 
 import highway_env
 
@@ -17,7 +17,6 @@ from agilerl.components.multi_agent_replay_buffer import MultiAgentReplayBuffer
 from agilerl.algorithms.maddpg import MADDPG
 from agilerl.wrappers.pettingzoo_wrappers import PettingZooVectorizationParallelWrapper
 
-from agent import MADDPGAgent
 
 
 

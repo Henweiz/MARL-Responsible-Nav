@@ -1,0 +1,8 @@
+numpy
+wandb
+torch
+Pillow
+tqdm
+gymnasium
+agilerl==1.0.11
+highway-env
