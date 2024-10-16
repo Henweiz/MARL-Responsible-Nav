@@ -51,12 +51,25 @@ class CustomEnv(gym.Env):
         Action4Agents = self.World.SelectActionsForAll(defaultAction = self.defaultAction, InputActionID4Agents = self.SpecificAction4Agents)
 #         print('SpecificAction Inputs 4Agents :', self.SpecificAction4Agents)
 #         print('Actions chosen for Agents :',Action4Agents)
+        RL_agentID = 0
+        no_fear = True
+        
+        Action4Agents[RL_agentID] = (RL_agentID, action[0])
 
-       # FeAR_vals,ValidMoves_MdR,ValidMoves_action1,ValidityOfMoves_Mdr,ValidityOfMoves_action1 =  Responsibility.FeAR(self.World, Action4Agents, self.MdR4Agents) 
+        max_distance = 5
+
+        agents = self.close_agents(Action4Agents, RL_agentID, max_distance)
+
+        if len(agents) <= 1 or no_fear:
+            FeAR_vals = 0.0
+        else:
+            FeAR_vals,ValidMoves_MdR,ValidMoves_action1,ValidityOfMoves_Mdr,ValidityOfMoves_action1 =  Responsibility.FeAR_4_one_actor(self.World, agents, self.MdR4Agents, RL_agentID) 
         #FeAL_vals, ValidMoves_moveDeRigueur_FeAL, ValidMoves_action_FeAL, \
         #   ValidityOfMoves_Mdr_FeAL, ValidityOfMoves_action_FeAL =  Responsibility.FeAL(self.World, Action4Agents, self.MdR4Agents)
+        
+        
                 
-        Action4Agents[0] = (0, action)
+        
 #         print("Action4AGENTS: ----- ", Action4Agents)
         # print(self.apples)
 
@@ -75,18 +88,11 @@ class CustomEnv(gym.Env):
         
 
         # OBSERVATIONS   Shape (10,16)
-
-        # observation[0,0] += 9
-        # observation[0,15] += 9
-        # observation[9,0] += 9
-        # observation[9,15] += 9
-        
-        
         
         self.episode_length += 1
 
-        if agent_crashes[0]:
-            reward -= 20
+        if agent_crashes[RL_agentID]:
+            reward -= 10
             terminated = True
 
         if len(apples_caught) == 1:
@@ -94,7 +100,7 @@ class CustomEnv(gym.Env):
             # key = list(self.apples)[apple_idx]
             self.apples.pop(apple_id)
             self.apples_eaten += 1
-            reward += 10
+            reward += 20
             if not self.apples:
                 truncated = True
         
@@ -103,23 +109,22 @@ class CustomEnv(gym.Env):
         #else:
         #    reward += 0.1
 
-        if distance[0] < self.prev_distance[0]:
+        if distance[RL_agentID] < self.prev_distance[RL_agentID]:
             reward += 0.1
 
         self.episode_reward += reward    
         observation = self.World.WorldState
         for loc in self.apples.values():
             observation[loc] += 9
-        
-        if terminated or truncated:
-            info = {
-                'episode': {
-                    'r': self.episode_reward,  # Total reward for the episode
-                    'l': self.episode_length    # Length of the episode
-                },
-                #"agent_mask_env": {restricted_moves}
-                "restricted": {restricted_moves[0]}
-            }
+        info = {
+            'episode': {
+                'r': self.episode_reward,  # Total reward for the episode
+                'l': self.episode_length    # Length of the episode
+            },
+            "restricted": restricted_moves[0],
+            "fear": np.sum(FeAR_vals)
+        }    
+
             #self.episode_reward = 0  # Reset for the next episode
             #self.episode_length = 0
         #inference = True
@@ -257,6 +262,15 @@ class CustomEnv(gym.Env):
 
         return (observation, {})  # reward, done, info can't be included
     
+    def close_agents(self, agents, agent_i, max_dist):
+        agent_list = []
+        for agentID, agent_action in agents:
+            if agentID == agent_i:
+                agent_list.append((agentID, agent_action))
+                continue
+            if manhattan_dist(self.World.AgentLocations[agent_i], self.World.AgentLocations[agentID]) <= max_dist:
+                agent_list.append((agentID, agent_action))
+        return agent_list
 #   def render(self, mode='human'):
 #     pass
 #   def close (self):
@@ -264,4 +278,6 @@ class CustomEnv(gym.Env):
 
 def manhattan_dist(loc_1, loc_2):
     return sum(abs(a - b) for a, b in zip(loc_1, loc_2))
+
+
 

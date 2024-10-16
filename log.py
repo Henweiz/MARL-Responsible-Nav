@@ -13,9 +13,10 @@ class Logger:
             resume="allow")
     
         
-    def log(self, reward, fitness, loss, steps):
-        wandb.log({"reward": reward, "fitness": fitness, "loss": loss, "steps": steps})
+    def log(self, reward, loss, steps, global_steps, fear):
+        wandb.log({"reward": reward, "global steps": global_steps, "loss": loss, "steps": steps, "FeAR value": fear})
 
-    def log(self, reward, loss, steps):
-        wandb.log({"reward": reward, "loss": loss, "steps": steps})    
+   # def log(self, reward, loss, steps):
+   #     wandb.log({"reward": reward, "loss": loss, "steps": steps})    
+    
 
