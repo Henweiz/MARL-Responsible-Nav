@@ -40,7 +40,7 @@
                       "02": {"mdr": 3, "slicex": [9, 10, 0], "slicey": [1, 16, 0]},
                       "03": {"mdr": 1, "slicex": [1, 10, 0], "slicey": [0, 1, 0]},
                       "04": {"mdr": 2, "slicex": [0, 9, 0], "slicey": [15, 16, 0]}},
-             "N_Agents": 8,
+             "N_Agents": 3,
              "N_Cases": 1,
              "N_iterations": 10,
              "Policies": {"00": {"directionWeights": [1, 1, 1, 1], "slicex": [0, 10, 0], "slicey": [0, 16, 0], "stepWeights": [1, 1, 0]},
