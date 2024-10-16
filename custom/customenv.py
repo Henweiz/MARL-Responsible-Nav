@@ -1,5 +1,6 @@
 import gymnasium as gym
 from gymnasium import spaces
+import pygame
 
 import numpy as np
 import math
@@ -20,12 +21,25 @@ scenario_name = 'GameMap'
 MdR4Agents_Default = 0 #Stay
 ExhaustiveActions = False
 Specific_MdR4Agents = [] #None
-Scenario = grid_world.LoadJsonScenario(scenario_name="GameMap")
+Scenario = grid_world.LoadJsonScenario(scenario_name="Level 3")
 num_agents = Scenario['N_Agents']
 
 ActionNames, ActionMoves = custom_agent.DefineActions()
 
 print('N_Agents : ',num_agents)
+
+# Define colors
+COLOR_MAP = {
+    -1: (0, 0, 0),   # Black for inactive cells
+    0: (255, 255, 255), # White for blank cells
+    1: (255, 0, 0),  # Red for the learned agent
+    2: (0, 0, 255),  # Blue for other agents
+    3: (0, 0, 255),  # Blue for another agent
+    10: (255, 215, 0), # Gold for the apple
+    11: (255, 0 ,0),
+    12: (0, 0, 255),  
+    13: (0, 0, 255)
+}
 
 
 class CustomEnv(gym.Env):
@@ -43,6 +57,8 @@ class CustomEnv(gym.Env):
                                             shape=(10, 16), dtype=np.float64)
         self.num_agents = 1
         self.prev_distance = []
+        self.window_width = 800
+        self.window_height = 500
     
 
 
@@ -51,10 +67,19 @@ class CustomEnv(gym.Env):
         Action4Agents = self.World.SelectActionsForAll(defaultAction = self.defaultAction, InputActionID4Agents = self.SpecificAction4Agents)
 #         print('SpecificAction Inputs 4Agents :', self.SpecificAction4Agents)
 #         print('Actions chosen for Agents :',Action4Agents)
+        RL_agentID = 0
+        no_fear = True
         
-        Action4Agents[0] = (0, action[0])
-        
-        FeAR_vals,ValidMoves_MdR,ValidMoves_action1,ValidityOfMoves_Mdr,ValidityOfMoves_action1 =  Responsibility.FeAR_4_one_actor(self.World, Action4Agents, self.MdR4Agents) 
+        Action4Agents[RL_agentID] = (RL_agentID, action[0])
+
+        max_distance = 5
+
+        agents = self.close_agents(Action4Agents, RL_agentID, max_distance)
+
+        if len(agents) <= 1 or no_fear:
+            FeAR_vals = 0.0
+        else:
+            FeAR_vals,ValidMoves_MdR,ValidMoves_action1,ValidityOfMoves_Mdr,ValidityOfMoves_action1 =  Responsibility.FeAR_4_one_actor(self.World, agents, self.MdR4Agents, RL_agentID) 
         #FeAL_vals, ValidMoves_moveDeRigueur_FeAL, ValidMoves_action_FeAL, \
         #   ValidityOfMoves_Mdr_FeAL, ValidityOfMoves_action_FeAL =  Responsibility.FeAL(self.World, Action4Agents, self.MdR4Agents)
         
@@ -82,7 +107,7 @@ class CustomEnv(gym.Env):
         
         self.episode_length += 1
 
-        if agent_crashes[0]:
+        if agent_crashes[RL_agentID]:
             reward -= 10
             terminated = True
 
@@ -100,7 +125,7 @@ class CustomEnv(gym.Env):
         #else:
         #    reward += 0.1
 
-        if distance[0] < self.prev_distance[0]:
+        if distance[RL_agentID] < self.prev_distance[RL_agentID]:
             reward += 0.1
 
         self.episode_reward += reward    
@@ -123,9 +148,9 @@ class CustomEnv(gym.Env):
         self.prev_distance = distance
         
         if inference: print(observation, ", ")
-        
+
             
-        
+        self.observation = observation
         return observation, reward, terminated, truncated, info
         
 
@@ -250,13 +275,48 @@ class CustomEnv(gym.Env):
         self.prev_distance = dist
 
 
-
+        self.observation = observation
         return (observation, {})  # reward, done, info can't be included
     
+    def close_agents(self, agents, agent_i, max_dist):
+        agent_list = []
+        for agentID, agent_action in agents:
+            if agentID == agent_i:
+                agent_list.append((agentID, agent_action))
+                continue
+            if manhattan_dist(self.World.AgentLocations[agent_i], self.World.AgentLocations[agentID]) <= max_dist:
+                agent_list.append((agentID, agent_action))
+        return agent_list
 #   def render(self, mode='human'):
 #     pass
 #   def close (self):
 #     pass
+    def render(self, mode='human'):
+        return self.render_frame()
+    
+    def render_frame(self):
+        pygame.init()
+        pygame.display.init()
+        self.window = pygame.display.set_mode((self.window_width, self.window_height))
+        canvas = pygame.Surface((self.window_width, self.window_height))
+        canvas.fill((0, 0, 0))
+        cell_size = 50
+
+        for i, row in enumerate(self.observation):
+            for j, cell_value in enumerate(row):
+                color = COLOR_MAP.get(int(cell_value), (255, 255, 255))
+                pygame.draw.rect(canvas, color, pygame.Rect(j * cell_size, i * cell_size, cell_size, cell_size))
+
+        self.window.blit(canvas, canvas.get_rect())
+        pygame.event.pump()
+        pygame.display.update()
+
+        
+
+    def close (self):
+        if self.window is not None:
+            pygame.display.quit()
+            pygame.quit()
 
 def manhattan_dist(loc_1, loc_2):
     return sum(abs(a - b) for a, b in zip(loc_1, loc_2))
