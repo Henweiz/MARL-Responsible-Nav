@@ -117,8 +117,9 @@ if __name__ == "__main__":
 
     for videos in range(10):
         state, info = env.reset()
-        termination = truncation = False
-        while not (termination or truncation):
+        termination = [False]
+        truncation = False
+        while not (all(termination) or truncation):
             #print("step")
 
             if NET_CONFIG["arch"] == "mlp":

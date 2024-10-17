@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import torch
-from pettingzoo.mpe import simple_spread_v3
 from tqdm import trange
 
 from agilerl.components.multi_agent_replay_buffer import MultiAgentReplayBuffer
@@ -15,6 +14,12 @@ from agilerl.algorithms.matd3 import MATD3
 import pickle
 import gymnasium as gym
 import highway_env
+import copy
+#from utility.FeAR import count_FeasibleActions,cal_FeAR_ij,cal_MdR, cal_FeAR
+from maddpg.utility.FeAR import cal_FeAR
+from maddpg.utility.behavior_regulizer import cal_speed_reward
+
+
 
 class MADDPGAgent:
     def __init__(self,
@@ -117,7 +122,7 @@ class MADDPGAgent:
 
     
     # Training loop
-    def train(self, num_envs, evo_steps, learning_delay, env):
+    def train(self, num_envs, evo_steps, learning_delay, env, with_FeAR=True):
         pop_episode_scores = []
         total_steps = 0
         for agent in self.pop:  # Loop through population
@@ -157,7 +162,6 @@ class MADDPGAgent:
                     if "env_defined_actions" in info.keys()
                     else None
                 )
-
                 # Get next action from agent
                 cont_actions, discrete_action = agent.get_action(
                     states=state_dict,
@@ -170,15 +174,42 @@ class MADDPGAgent:
                 else:
                     action = cont_actions
 
-                
-                # Act in environment
-                action_tuple  = tuple(action.values())
-                
-                if self.INIT_HP["CUSTOM_ENV"]:
-                    next_state, reward, termination, truncation, info = env.step(action_tuple[0])
+                if with_FeAR:
+                    # Act in environment
+                    action_tuple  = tuple(action.values())
+                    action_tuple = tuple(x.item() for x in action_tuple)
+                    #print("action = ", action_tuple)
+
+                    FeAR_weight = self.INIT_HP["FeAR_weight"]
+
+                    if self.INIT_HP["CUSTOM_ENV"]:
+                        next_state, reward, termination, truncation, info = env.step(action_tuple)
+                        FeAR = info["fear"]
+                        
+                        reward = np.array(reward) + FeAR_weight * np.sum(FeAR)
+                    else:
+                        FeAR = cal_FeAR(env, action_tuple, self.INIT_HP)
+                        next_state, reward, termination, truncation, info = env.step(action_tuple)
+
+                        speed_reward = cal_speed_reward(env)
+                        reward = np.array(reward) + speed_reward + FeAR_weight * np.sum(FeAR, axis=1)
+                        
+                    fear_score += FeAR
+                    reward = tuple(reward)
+
                 else:
+                    # Act in environment
+                    action_tuple  = tuple(action.values())
                     action_tuple = tuple(x.item() for x in action_tuple)
                     next_state, reward, termination, truncation, info = env.step(action_tuple)
+                    if not self.INIT_HP["CUSTOM_ENV"]:
+                        speed_reward = cal_speed_reward(env)
+                        print("speed_reward = ", speed_reward)
+                        reward = np.array(reward) + speed_reward
+                    reward = tuple(reward)
+                    #print(info)
+
+
                 if self.INIT_HP["CUSTOM_ENV"] and self.NET_CONFIG["arch"] == "mlp":
                     next_state = [np.concatenate(next_state)]   
                 
@@ -192,10 +223,7 @@ class MADDPGAgent:
                         for agent_id, ns in next_state_dict.items()
                     }
 
-                # Add FeAR to our reward    
-                fear_weight = -5.0
-                # reward += (fear_weight * info["fear"])
-                reward_dict = self.make_dict([reward])
+                reward_dict = self.make_dict(reward)
                 # fear_score += info["fear"]  
                 scores += np.sum(np.array(list(reward_dict.values())).transpose(), axis=-1)
 
@@ -209,7 +237,8 @@ class MADDPGAgent:
                         for agent_id, ns in next_state_dict.items()
                     }
                 
-                termination_dict = self.make_dict([termination])
+
+                termination_dict = self.make_dict(termination)
                 cont_actions = {k: np.squeeze(v) for (k,v) in cont_actions.items()}
 
                 # Save experiences to replay buffer
@@ -236,6 +265,7 @@ class MADDPGAgent:
                         # Learn according to agent's RL algorithm
                         loss = agent.learn(experiences)
                         self.loss.append(loss)
+                        #print("loss=", loss)
                 # Handle num_envs > learn step; learn multiple times per step in env
                 elif (
                     len(self.memory) >= agent.batch_size and self.memory.counter > learning_delay
@@ -246,6 +276,7 @@ class MADDPGAgent:
                         # Learn according to agent's RL algorithm
                         loss = agent.learn(experiences)
                         self.loss.append(loss)
+                        #print("loss=", loss)
 
                 state = next_state
 
@@ -262,6 +293,8 @@ class MADDPGAgent:
                 
                 agent.reset_action_noise(reset_noise_indices)
                 if all(term_array) or truncation:
+                    print(term_array)
+                    print(truncation)
                     break
                 if idx_step == (evo_steps -1):
                     completed_episode_scores.append(scores[0])

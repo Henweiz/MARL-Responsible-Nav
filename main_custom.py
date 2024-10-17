@@ -49,13 +49,16 @@ if __name__ == '__main__':
         "TAU": 0.01,  # For soft update of target parameters
         "POLICY_FREQ": 1,  # Policy frequnecy
         "POP_SIZE": 1,  # Population size, 1 if we do not want to use Hyperparameter Optimization
-        "MAX_EPISODES": 5000,
+        "MAX_EPISODES": 800,
         "TRAIN_STEPS": 200,
-        "LOAD_AGENT": False, # Load previous trained agent
+        "LOAD_AGENT": True, # Load previous trained agent
         "SAVE_AGENT": True, # Save the agent
         "LOGGING": True,
-        "RESUME": False,
-        "RESUME_ID": "nhdokura"
+        "RESUME": True,
+        "RESUME_ID": "rghnyha9",
+        "WITH_FEAR": False,
+        "FeAR_weight": -2.0,
+        "FeAR_trajectory_length": 5
     }
 
     # Path & filename to save or load
@@ -86,7 +89,7 @@ if __name__ == '__main__':
     #env = gym.make("intersection-multi-agent-v1", render_mode=None, config = config2)
     #print(env.unwrapped.config)
     #env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
-    env = CustomEnv()
+    env = CustomEnv(fear=INIT_HP["WITH_FEAR"])
     obs, info = env.reset(INIT_HP["SEED"])
     #env.num_agents = env.unwrapped.config['controlled_vehicles']
 
@@ -170,7 +173,7 @@ if __name__ == '__main__':
         total_steps += steps
         pbar.update(1)
         if INIT_HP["LOGGING"]:
-            logger.log(np.mean(mean_scores), agents.total_loss(), steps, global_steps=total_steps, fear=fear)
+            logger.log(np.mean(mean_scores), agents.total_loss(), steps, total_steps, fear)
 
         print(f"--- Episode: {i} ---")
         print(f"Steps {steps}")
@@ -178,10 +181,12 @@ if __name__ == '__main__':
         print(f"Loss: {agents.total_loss()}")
         print(f'Fear: {fear}')
     
-    pbar.close()
-    env.close()
+
     
     if INIT_HP["SAVE_AGENT"]:
         agents.save_checkpoint(path, filename)
         print("Succesfully saved the agent")
+
+    pbar.close()
+    env.close()
 

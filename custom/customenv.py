@@ -44,7 +44,7 @@ COLOR_MAP = {
 class CustomEnv(gym.Env):
     """Custom Environment that follows gym interface"""
 
-    def __init__(self, render_on=False):
+    def __init__(self, render=False, fear=True):
         super(CustomEnv, self).__init__()
         # Define action and observation space
         # They must be gym.spaces objects
@@ -55,13 +55,15 @@ class CustomEnv(gym.Env):
                                             shape=(10, 16), dtype=np.float64)
         self.num_agents = 1
         self.prev_distance = []
-        self.render_on = render_on
+        self.fear = fear
+        self.window = None
+        self.rendering = render
 
-        if render_on:
+        if self.rendering:
             self.window_width = 800
             self.window_height = 500
             self.cell_size = 50
-            self.window = None
+
             self.clock = pygame.time.Clock()
             pygame.init()
             pygame.display.init()
@@ -82,7 +84,7 @@ class CustomEnv(gym.Env):
         
         # FeAR_vals,ValidMoves_MdR,ValidMoves_action1,ValidityOfMoves_Mdr,ValidityOfMoves_action1 =  Responsibility.FeAR_4_one_actor(self.World, Action4Agents, self.MdR4Agents) 
         RL_agentID = 0
-        no_fear = True
+
         
         Action4Agents[RL_agentID] = (RL_agentID, action[0])
 
@@ -90,7 +92,7 @@ class CustomEnv(gym.Env):
 
         agents = self.close_agents(Action4Agents, RL_agentID, max_distance)
 
-        if len(agents) <= 1 or no_fear:
+        if len(agents) <= 1 or (not self.fear):
             FeAR_vals = 0.0
         else:
             FeAR_vals,ValidMoves_MdR,ValidMoves_action1,ValidityOfMoves_Mdr,ValidityOfMoves_action1 =  Responsibility.FeAR_4_one_actor(self.World, agents, self.MdR4Agents, RL_agentID) 
@@ -152,7 +154,7 @@ class CustomEnv(gym.Env):
                 'l': self.episode_length    # Length of the episode
             },
             "restricted": restricted_moves[0],
-            # "fear": np.sum(FeAR_vals)
+            "fear": np.sum(FeAR_vals)
         }    
 
             #self.episode_reward = 0  # Reset for the next episode
@@ -165,7 +167,7 @@ class CustomEnv(gym.Env):
 
             
         self.observation = observation
-        return observation, reward, terminated, truncated, info
+        return observation, [reward], [terminated], truncated, info
         
 
     def reset(self, seed=None, options=None):
@@ -324,7 +326,7 @@ class CustomEnv(gym.Env):
         self.clock.tick(10)
 
     def close (self):
-        if self.render_on and self.window is not None:
+        if self.window is not None and self.rendering:
             pygame.display.quit()
             pygame.quit()
 
