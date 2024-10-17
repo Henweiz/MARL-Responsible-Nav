@@ -169,23 +169,32 @@ class MADDPGAgent:
                     FeAR_weight = self.INIT_HP["FeAR_weight"]
                     FeAR = cal_FeAR(env, action_tuple, self.INIT_HP)
 
-                    next_state, reward, termination, truncation, info = env.step(action_tuple)
-                    speed_reward = cal_speed_reward(env)
+                    next_state, _, _, truncation, info = env.step(action_tuple)
+                    reward = info["agents_rewards"]
+                    termination = info["agents_terminated"]
+                    termination_bad = info["agents_terminated_bad"]
+                    termination_good = info["agents_terminated_good"]
+                    #speed_reward = cal_speed_reward(env)
                     #print(info)
 
                     #reward = (1 - alpha) *  np.array(reward) + alpha * FeAR_weight * np.sum(FeAR, axis=1)
-                    reward = np.array(reward) + speed_reward + FeAR_weight * np.sum(FeAR, axis=1)
+                    #reward = np.array(reward) + speed_reward + FeAR_weight * np.sum(FeAR, axis=1)
+                    reward = np.array(reward) + FeAR_weight * np.sum(FeAR, axis=1)
                     reward = tuple(reward)
 
                 else:
                     # Act in environment
                     action_tuple  = tuple(action.values())
                     action_tuple = tuple(x.item() for x in action_tuple)
-                    next_state, reward, termination, truncation, info = env.step(action_tuple)
-                    speed_reward = cal_speed_reward(env)
-                    print("speed_reward = ", speed_reward)
-                    reward = np.array(reward) + speed_reward
-                    reward = tuple(reward)
+                    next_state, _, _, truncation, info = env.step(action_tuple)
+                    #speed_reward = cal_speed_reward(env)
+                    #print("speed_reward = ", speed_reward)
+
+                    #reward = np.array(reward) + speed_reward
+                    reward = info["agents_rewards"]
+                    termination = info["agents_terminated"]
+                    termination_bad = info["agents_terminated_bad"]
+                    termination_good = info["agents_terminated_good"]
                     print(info)
 
                 
@@ -256,7 +265,7 @@ class MADDPGAgent:
                 reset_noise_indices = []
                 term_array = np.array(list(termination_dict.values())).transpose()
                 for i in range(num_envs):
-                    if all(term_array) or truncation:
+                    if all(termination_good) or any(termination_bad) or truncation:
                         
                         reset_noise_indices.append(i)
                             
@@ -265,9 +274,9 @@ class MADDPGAgent:
                         scores[i] = 0
                         state, info = env.reset()
                      
-                
                 agent.reset_action_noise(reset_noise_indices)
-                if all(term_array) or truncation:
+                
+                if all(termination_good) or any(termination_bad) or truncation:
                     break      
 
             agent.steps[-1] += steps

@@ -47,14 +47,14 @@ if __name__ == '__main__':
     INIT_HP = {
         # Swap image channels dimension from last to first [H, W, C] -> [C, H, W]
         "CHANNELS_LAST": False,
-        "O_U_NOISE": True,  # Ornstein Uhlenbeck action noise
+        "O_U_NOISE": False,  # Ornstein Uhlenbeck action noise
         "EXPL_NOISE": 0.1,  # Action noise scale
         "MEAN_NOISE": 0.0,  # Mean action noise
         "THETA": 0.15,  # Rate of mean reversion in OU noise
         "DT": 0.01,  # Timestep for OU noise
         "LR_ACTOR": 0.001,  # Actor learning rate
         "LR_CRITIC": 0.001,  # Critic learning rate
-        "GAMMA": 0.99,  # Discount factor
+        "GAMMA": 0.6,  # Discount factor
         "MEMORY_SIZE": 800000,  # Max memory buffer size
         "TAU": 0.01,  # For soft update of target parameters
         "POP_SIZE": 1,  # Population size, 1 if we do not want to use Hyperparameter Optimization
@@ -64,11 +64,11 @@ if __name__ == '__main__':
         "MAX_EPISODES": 1000,
         "LEARN_STEP": 5,  # Learning frequency
         "LOAD_AGENT": False, # Load previous trained agent
-        "SAVE_AGENT": False, # Save the agent
-        "LOGGING": False,
+        "SAVE_AGENT": True, # Save the agent
+        "LOGGING": True,
         "RESUME": False,
         "RESUME_ID": "6v7adywb",
-        "WITH_FEAR": True,
+        "WITH_FEAR": False,
         "FeAR_weight": -2.0,
         "FeAR_trajectory_length": 5
     }
@@ -76,7 +76,7 @@ if __name__ == '__main__':
     # Path & filename to save or load
     path = "./models/intersection/mlp"
     #filename = "MADDPG_trained_4agent2000eps{}seed_woFeAR.pt".format(INIT_HP["SEED"])
-    filename = "MADDPG_trained_4agent{}eps_woFeAR_test.pt".format(INIT_HP["MAX_EPISODES"])
+    filename = "MADDPG_trained_4agent{}eps_woFeAR_test8.pt".format(INIT_HP["MAX_EPISODES"])
 
     # Records for evaluation of performance
     scores = []
@@ -110,9 +110,12 @@ if __name__ == '__main__':
                },
     "initial_vehicle_count": 10,
     "controlled_vehicles": 4,
-    "collision_reward": -5,
+    "collision_reward": -20,
     "high_speed_reward": 1,
-    "arrived_reward": 1
+    "arrived_reward": 10,
+    "policy_frequency": INIT_HP["POLICY_FREQ"],
+    "offroad_terminal": False
+    #"destination": None
     }
 
     config2 = {
@@ -149,12 +152,12 @@ if __name__ == '__main__':
 
     # Define the simple spread environment as a parallel environment
     #env = gym.make("intersection-multi-agent-v1", render_mode=None, config=config)
-    env = IntersectionEnv(config=config2)
+    env = IntersectionEnv()
     #env.unwrapped.MDPVehicle.target_speeds =  np.array([0,4.5,9])
-    #env.unwrapped.config.update(config2)
+    env.unwrapped.config.update(config)
     print(env.unwrapped.config)
     #env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
-    obs, info = env.reset(seed=66)
+    obs, info = env.reset()
     env.num_agents = env.unwrapped.config['controlled_vehicles']
     env.agents = [f'agent_{i}' for i in range(env.num_agents)]
     # Logger

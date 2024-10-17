@@ -4,7 +4,7 @@ import copy
 
 
 
-def count_FeasibleActions(i, j, action, env, DiscreteMetaAction={0: "SLOWER", 1: "IDLE", 2: "FASTER"}):
+def count_FeasibleActions(i, j, action, env, trajectory_length, DiscreteMetaAction={0: "SLOWER", 1: "IDLE", 2: "FASTER"}):
     '''
     Function that counts the number of feasible actions of agent "others" given the movement of agent "ego"
 
@@ -14,7 +14,10 @@ def count_FeasibleActions(i, j, action, env, DiscreteMetaAction={0: "SLOWER", 1:
     if type(env.unwrapped.road.vehicles[j]) != type(env.unwrapped.controlled_vehicles[0]):
 
         environment = copy.deepcopy(env)
-        _, _, _, _, info = environment.step(tuple(action))
+
+        for _ in range(trajectory_length):
+            _, _, _, _, info = environment.step(tuple(action))
+
         agent_j = environment.unwrapped.road.vehicles[j]
 
         if agent_j.crashed == True:
@@ -32,8 +35,12 @@ def count_FeasibleActions(i, j, action, env, DiscreteMetaAction={0: "SLOWER", 1:
         for action_j in range(len(DiscreteMetaAction)):
 
             action[index_j] = action_j
+
             environment = copy.deepcopy(env)
-            _, _, _, _, info = environment.step(tuple(action))
+
+            for _ in range(trajectory_length):
+                _, _, _, _, info = environment.step(tuple(action))
+                
             agent_j = environment.unwrapped.road.vehicles[j]
 
             if agent_j.crashed == False:
@@ -50,7 +57,7 @@ def count_FeasibleActions(i, j, action, env, DiscreteMetaAction={0: "SLOWER", 1:
     return
 
 
-def cal_FeAR_ij(i, j, action, MdR, before_action_env, epsilon = 1e-6):
+def cal_FeAR_ij(i, j, action, MdR, before_action_env, trajectory_length, epsilon = 1e-6):
     '''
     Function that calculates the FeAR value of agent i on agent j, i.e. FeAR_ij
 
@@ -71,8 +78,8 @@ def cal_FeAR_ij(i, j, action, MdR, before_action_env, epsilon = 1e-6):
         action_MdRi = copy.deepcopy(action)
         action_MdRi[i] = MdR[i]
             
-        n_FeasibleActions_MdRi_j = count_FeasibleActions(i, j, action_MdRi, before_action_env)
-        n_FeasibleActions_Actioni_j = count_FeasibleActions(i, j, action, before_action_env)
+        n_FeasibleActions_MdRi_j = count_FeasibleActions(i, j, action_MdRi, before_action_env, trajectory_length)
+        n_FeasibleActions_Actioni_j = count_FeasibleActions(i, j, action, before_action_env, trajectory_length)
 
         #print("n_FeasibleActions_MdRi_j=", n_FeasibleActions_MdRi_j)
         #print("n_FeasibleActions_Actioni_j", n_FeasibleActions_Actioni_j)
@@ -125,7 +132,7 @@ def cal_FeAR(env, action_tuple, INIT_HP):
 
     for i in range(INIT_HP["N_AGENTS"]):
         for j in range(len(env.unwrapped.road.vehicles) - 1):
-            FeAR[i,j] += cal_FeAR_ij(i, j, action_tuple, MdR, before_action_env)
+            FeAR[i,j] += cal_FeAR_ij(i, j, action_tuple, MdR, before_action_env, INIT_HP["FeAR_trajectory_length"])
 
     print("FeAR = ")
     print(FeAR)

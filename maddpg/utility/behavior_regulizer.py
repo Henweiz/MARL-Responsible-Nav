@@ -28,8 +28,8 @@ def cal_speed_reward(env, weight=1):
     for i in range(len(agents)):
 
         speed = agents[i].speed
-        print("i = ", i)
-        print("speed = ", speed)
+        #print("i = ", i)
+        #print("speed = ", speed)
         if speed <= 9.0 + EPISILON and speed >= 7.0 - EPISILON:
             rewards[i] = 1 * weight
 
