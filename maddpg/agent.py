@@ -223,7 +223,7 @@ class MADDPGAgent:
                         for agent_id, ns in next_state_dict.items()
                     }
 
-                reward_dict = self.make_dict([reward])
+                reward_dict = self.make_dict(reward)
                 # fear_score += info["fear"]  
                 scores += np.sum(np.array(list(reward_dict.values())).transpose(), axis=-1)
 
@@ -237,7 +237,8 @@ class MADDPGAgent:
                         for agent_id, ns in next_state_dict.items()
                     }
                 
-                termination_dict = self.make_dict([termination])
+
+                termination_dict = self.make_dict(termination)
                 cont_actions = {k: np.squeeze(v) for (k,v) in cont_actions.items()}
 
                 # Save experiences to replay buffer
@@ -292,6 +293,8 @@ class MADDPGAgent:
                 
                 agent.reset_action_noise(reset_noise_indices)
                 if all(term_array) or truncation:
+                    print(term_array)
+                    print(truncation)
                     break
                 if idx_step == (evo_steps -1):
                     completed_episode_scores.append(scores[0])

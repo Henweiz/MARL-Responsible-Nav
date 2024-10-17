@@ -58,8 +58,8 @@ if __name__ == "__main__":
     }
 
     # Path & filename to save or load
-    path = "./models/custom/MADDPG"
-    filename = "MADDPG_5k.pt"
+    path = "./models/custom/single/wo_fear"
+    filename = "Single_MADDPG.pt"
 
     # Define the network configuration
     if INIT_HP["ARCH"] == "mlp":
@@ -117,8 +117,9 @@ if __name__ == "__main__":
 
     for videos in range(5):
         state, info = env.reset()
-        termination = truncation = False
-        while not (termination or truncation):
+        termination = [False]
+        truncation = False
+        while not (all(termination) or truncation):
             #print("step")
 
             if NET_CONFIG["arch"] == "mlp":

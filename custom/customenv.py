@@ -56,12 +56,14 @@ class CustomEnv(gym.Env):
         self.num_agents = 1
         self.prev_distance = []
         self.fear = fear
+        self.window = None
+        self.rendering = render
 
-        if render:
+        if self.rendering:
             self.window_width = 800
             self.window_height = 500
             self.cell_size = 50
-            self.window = None
+
             self.clock = pygame.time.Clock()
             pygame.init()
             pygame.display.init()
@@ -165,7 +167,7 @@ class CustomEnv(gym.Env):
 
             
         self.observation = observation
-        return observation, [reward], terminated, truncated, info
+        return observation, [reward], [terminated], truncated, info
         
 
     def reset(self, seed=None, options=None):
@@ -324,7 +326,7 @@ class CustomEnv(gym.Env):
         self.clock.tick(10)
 
     def close (self):
-        if self.window is not None and render:
+        if self.window is not None and self.rendering:
             pygame.display.quit()
             pygame.quit()
 
