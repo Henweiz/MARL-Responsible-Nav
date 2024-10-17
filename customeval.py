@@ -85,7 +85,7 @@ if __name__ == "__main__":
     #env = gym.make("intersection-multi-agent-v1", render_mode=None, config = config2)
     #print(env.unwrapped.config)
     #env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
-    env = CustomEnv(render_on=True)
+    env = CustomEnv(render=True, fear=True)
     obs, info = env.reset(INIT_HP["SEED"])
     #env.num_agents = env.unwrapped.config['controlled_vehicles']
 

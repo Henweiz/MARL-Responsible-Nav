@@ -2,8 +2,10 @@ import gymnasium as gym
 from gymnasium import spaces
 import pygame
 
+import pprint
 import numpy as np
 import math
+import random
 import json
 import pygame
 from . import grid_world
@@ -76,9 +78,30 @@ class CustomEnv(gym.Env):
 
     def step(self, action):
         done = False
+        self.MdR4Agents = []  # Resetting MdR4Agents
+        
+
+        for ii, agent in enumerate(self.World.AgentList):
+            agent_location = self.World.AgentLocations[ii]
+
+            # Updating Policies of Agents
+            agent_policy = str(self.policy_map[agent_location[0], agent_location[1]]).zfill(2)
+            agent_stepWeights = self.policies[agent_policy]['stepWeights']
+            agent_directionWeights = self.policies[agent_policy]['directionWeights']
+            if random.random() < 0.25:
+                arr = [0, 0, 0, 1]
+                agent_directionWeights = random.shuffle(arr)
+                
+            # Updating MdRs of Agents
+            agent_mdr_key = str(self.mdr_map[agent_location[0], agent_location[1]]).zfill(2)
+            agent_mdr = self.mdrs[agent_mdr_key]['mdr']
+            self.MdR4Agents.append([ii, agent_mdr])
+
+            policy = custom_agent.GeneratePolicy(StepWeights=agent_stepWeights, DirectionWeights=agent_directionWeights)
+            agent.UpdateActionPolicy(policy)
+
+        
         Action4Agents = self.World.SelectActionsForAll(defaultAction = self.defaultAction, InputActionID4Agents = self.SpecificAction4Agents)
-#         print('SpecificAction Inputs 4Agents :', self.SpecificAction4Agents)
-#         print('Actions chosen for Agents :',Action4Agents)
         
         Action4Agents[0] = (0, action[0])
         
@@ -98,6 +121,7 @@ class CustomEnv(gym.Env):
             FeAR_vals,ValidMoves_MdR,ValidMoves_action1,ValidityOfMoves_Mdr,ValidityOfMoves_action1 =  Responsibility.FeAR_4_one_actor(self.World, agents, self.MdR4Agents, RL_agentID) 
         #FeAL_vals, ValidMoves_moveDeRigueur_FeAL, ValidMoves_action_FeAL, \
         #   ValidityOfMoves_Mdr_FeAL, ValidityOfMoves_action_FeAL =  Responsibility.FeAL(self.World, Action4Agents, self.MdR4Agents)
+
         
         
                 
@@ -180,6 +204,38 @@ class CustomEnv(gym.Env):
         self.episode_length = 0
 
 
+        # Dictionary of Policies
+        self.policy_map = np.zeros(np.shape(self.Region), dtype=int)
+        self.policies = Scenario['Policies']
+        # print(f'policies = \n{pprint.pformat(self.policies)}')
+
+        # Update PolicyMap
+        policy_keys = self.policies.keys()
+        # print(f'{policy_keys =}')
+        for key in policy_keys:
+            slicex = self.policies[key]['slicex']
+            slicey = self.policies[key]['slicey']
+            self.policy_map[slicex, slicey] = key
+        # print(f'Region =\n {self.Region}')
+        # print(f'policyMap =\n {self.policy_map}')
+
+        # Dictionary of MdRs
+        self.mdr_map = np.zeros(np.shape(self.Region), dtype=int)
+        self.mdrs = Scenario['MdRs']
+        # print(f'mdrs = \n{pprint.pformat(self.mdrs)}')
+
+        # Update MdRMap
+        mdrs_keys = self.mdrs.keys()
+        # print(f'{mdrs_keys =}')
+        for key in mdrs_keys:
+            slicex = self.mdrs[key]['slicex']
+            slicey = self.mdrs[key]['slicey']
+            self.mdr_map[slicex, slicey] = key
+        # print(f'Region =\n {self.Region}')
+        # print(f'mdr_map =\n {self.mdr_map}')
+
+
+
         self.AgentLocations = []
         for location in Scenario['AgentLocations']:
             self.AgentLocations.append(tuple(location))
@@ -216,31 +272,41 @@ class CustomEnv(gym.Env):
         self.SpecificAction4Agents = Scenario['SpecificAction4Agents']
 #         print('SpecificAction4Agents :', self.SpecificAction4Agents)
 
-        # Setting Policy for all Agents
-        # The default Step and Direction Weights
-        StepWeights=Scenario['StepWeights']
-        DirectionWeights=Scenario['DirectionWeights']
-        ListOfStepWeights = []
-        ListOfDirectionWeights = []
+#         # Setting Policy for all Agents
+#         # The default Step and Direction Weights
+#         StepWeights=Scenario['StepWeights']
+#         DirectionWeights=Scenario['DirectionWeights']
+#         ListOfStepWeights = []
+#         ListOfDirectionWeights = []
 
-        for ii in range(len(self.World.AgentList)):
-            ListOfStepWeights.append(StepWeights)
-            ListOfDirectionWeights.append(DirectionWeights)
+#         for ii in range(len(self.World.AgentList)):
+#             ListOfStepWeights.append(StepWeights)
+#             ListOfDirectionWeights.append(DirectionWeights)
 
-        # Updating the list of stepweights based on specific weights for agents    
-        for agentIDs,stepweights4agents in Scenario['SpecificStepWeights4Agents']:
-            for agentID in agentIDs:
-                ListOfStepWeights[agentID] = stepweights4agents
+#         # Updating the list of stepweights based on specific weights for agents    
+#         for agentIDs,stepweights4agents in Scenario['SpecificStepWeights4Agents']:
+#             for agentID in agentIDs:
+#                 ListOfStepWeights[agentID] = stepweights4agents
 
-        # Updating the list of directionweights based on specific weights for agents            
-        for agentIDs,directionweights4agents in Scenario['SpecificDirectionWeights4Agents']:
-            for agentID in agentIDs:
-                ListOfDirectionWeights[agentID] = directionweights4agents
+#         # Updating the list of directionweights based on specific weights for agents            
+#         for agentIDs,directionweights4agents in Scenario['SpecificDirectionWeights4Agents']:
+#             for agentID in agentIDs:
+#                 ListOfDirectionWeights[agentID] = directionweights4agents
 
-        # Updating Agent Policies in World   
-        for ii,ai in enumerate(self.World.AgentList):
-            policy = custom_agent.GeneratePolicy(StepWeights=ListOfStepWeights[ii],DirectionWeights=ListOfDirectionWeights[ii])
-            ai.UpdateActionPolicy(policy)
+#         # Updating Agent Policies in World   
+#         for ii,ai in enumerate(self.World.AgentList):
+#             policy = custom_agent.GeneratePolicy(StepWeights=ListOfStepWeights[ii],DirectionWeights=ListOfDirectionWeights[ii])
+#             ai.UpdateActionPolicy(policy)
+
+        for ii, agent in enumerate(self.World.AgentList):
+            agent_location = self.World.AgentLocations[ii]
+            agent_policy = str(self.policy_map[agent_location[0], agent_location[1]]).zfill(2)
+            agent_stepWeights = self.policies[agent_policy]['stepWeights']
+            agent_directionWeights = self.policies[agent_policy]['directionWeights']
+
+            policy = custom_agent.GeneratePolicy(StepWeights=agent_stepWeights, DirectionWeights=agent_directionWeights)
+            agent.UpdateActionPolicy(policy)
+
 
         #------------------------------------------------------------------------------------------------------------------
         #------------------------------------------------------------------------------------------------------------------
@@ -250,15 +316,21 @@ class CustomEnv(gym.Env):
         # MdR4Agents = [[1,4]]
         self.MdR4Agents = []
 
-        #Setting the MdR for each Agent
-        for ii in range(len(self.World.AgentList)):
-            self.MdR4Agents.append([ii, MdR4Agents_Default])
+        # #Setting the MdR for each Agent
+        # for ii in range(len(self.World.AgentList)):
+        #     self.MdR4Agents.append([ii, MdR4Agents_Default])
             
-        for agent,specific_mdr in Specific_MdR4Agents:
-            self.MdR4Agents[agent] = [agent, specific_mdr]
+        # for agent,specific_mdr in Specific_MdR4Agents:
+        #     self.MdR4Agents[agent] = [agent, specific_mdr]
 
         # print('MdR4Agents : ', self.MdR4Agents)
 
+        for ii in range(len(self.World.AgentList)):
+            agent_location = self.World.AgentLocations[ii]
+            agent_mdr_key = str(self.mdr_map[agent_location[0], agent_location[1]]).zfill(2)
+            agent_mdr = self.mdrs[agent_mdr_key]['mdr']
+            self.MdR4Agents.append([ii, agent_mdr])
+            # print(f'{agent_location =}, {agent_mdr =}')
 
 
         # Observe (1) location of agent and all other agents, (2) map state, (3) apples/stars
