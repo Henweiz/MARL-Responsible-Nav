@@ -50,7 +50,7 @@ if __name__ == "__main__":
         "POP_SIZE": 1,  # Population size, 1 if we do not want to use Hyperparameter Optimization
         "MAX_EPISODES": 1,
         "TRAIN_STEPS": 200,
-        "LOAD_AGENT": False, # Load previous trained agent
+        "LOAD_AGENT": True, # Load previous trained agent
         "SAVE_AGENT": False, # Save the agent
         "LOGGING": False,
         "RESUME": False,
