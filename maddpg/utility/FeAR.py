@@ -2,6 +2,8 @@
 import numpy as np
 import copy
 
+from concurrent.futures import ProcessPoolExecutor
+
 
 
 def count_FeasibleActions(i, j, action, env, trajectory_length, DiscreteMetaAction={0: "SLOWER", 1: "IDLE", 2: "FASTER"}):
@@ -120,19 +122,43 @@ def cal_FeAR(env, action_tuple, INIT_HP):
     '''
     Calculate FeAR
     '''
-
+    
     #Get MdRs
     MdR = cal_MdR(env.unwrapped.controlled_vehicles, env)
     #print("MdR=", MdR)
                     
-    #Deepcopy current env
-    before_action_env = copy.deepcopy(env)
-                         
+    before_action_env = env                
     FeAR = np.zeros(shape = (INIT_HP["N_AGENTS"],len(env.unwrapped.road.vehicles)))
-
-    for i in range(INIT_HP["N_AGENTS"]):
+    
+    if len(env.unwrapped.controlled_vehicles) == 4:
+        
+        before_action_env0 = copy.deepcopy(before_action_env)
+        before_action_env1 = copy.deepcopy(before_action_env)
+        before_action_env2 = copy.deepcopy(before_action_env)
+        before_action_env3 = copy.deepcopy(before_action_env)
+       
+        process_items = list(zip(range(4), [before_action_env0, before_action_env1, before_action_env2, before_action_env3]))
+        
         for j in range(len(env.unwrapped.road.vehicles) - 1):
-            FeAR[i,j] += cal_FeAR_ij(i, j, action_tuple, MdR, before_action_env, INIT_HP["FeAR_trajectory_length"])
+
+            with ProcessPoolExecutor(max_workers=4) as executor:
+                results = [executor.submit(cal_FeAR_ij, process_items[i][0], j, action_tuple, MdR, process_items[i][1], INIT_HP["FeAR_trajectory_length"]) \
+                            for i in range(len(process_items))]
+                #print("results = ", results)
+
+                for i, res in zip(range(4), results):
+                    #print("FeAR[{},j]={}".format(i, res.result()))
+                    FeAR[i, j] = res.result()
+           
+        del before_action_env0
+        del before_action_env1
+        del before_action_env2
+        del before_action_env3
+    
+    else:
+        for i in range(INIT_HP["N_AGENTS"]):
+            for j in range(len(env.unwrapped.road.vehicles) - 1):
+                FeAR[i,j] = cal_FeAR_ij(i, j, action_tuple, MdR, before_action_env, INIT_HP["FeAR_trajectory_length"])
 
     print("FeAR = ")
     print(FeAR)
