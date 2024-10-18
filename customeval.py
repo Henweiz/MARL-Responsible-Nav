@@ -33,7 +33,7 @@ if __name__ == "__main__":
         # Swap image channels dimension from last to first [H, W, C] -> [C, H, W]
         "CUSTOM_ENV": True,
         "ARCH": "mlp",
-        "SEED": 42,
+        "SEED": 31,
         "CHANNELS_LAST": False,
         "BATCH_SIZE": 128,  # Batch size
         "O_U_NOISE": False,  # Ornstein Uhlenbeck action noise
@@ -50,7 +50,7 @@ if __name__ == "__main__":
         "POLICY_FREQ": 1,  # Policy frequnecy
         "POP_SIZE": 1,  # Population size, 1 if we do not want to use Hyperparameter Optimization
         "MAX_EPISODES": 1,
-        "TRAIN_STEPS": 200,
+        "TRAIN_STEPS": 50,
         "LOAD_AGENT": True, # Load previous trained agent
         "SAVE_AGENT": False, # Save the agent
         "LOGGING": False,
@@ -60,7 +60,7 @@ if __name__ == "__main__":
 
     # Path & filename to save or load
     path = "./models/custom/multi/MADDPG"
-    filename = "MADDPG_3.pt"
+    filename = "MADDPG_2.pt"
 
     # Define the network configuration
     if INIT_HP["ARCH"] == "mlp":
@@ -87,8 +87,8 @@ if __name__ == "__main__":
     #print(env.unwrapped.config)
     #env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
     # env = CustomEnv(render=True, fear=True)
-    env = CustomMAEnv(render=True, fear=False)
-    obs, info = env.reset(INIT_HP["SEED"])
+    env = CustomMAEnv(render=True, fear=False, seed=INIT_HP["SEED"])
+    obs, info = env.reset()
     #env.num_agents = env.unwrapped.config['controlled_vehicles']
 
     env.agents = [f'agent_{i}' for i in range(env.num_agents)]
@@ -117,23 +117,23 @@ if __name__ == "__main__":
 
     
 
-    for videos in range(20):
+    for videos in range(30):
         state, info = env.reset()
         termination = [False]
         truncation = False
-        while not (all(termination) or truncation):
-            #print("step")
+        for _ in range(INIT_HP["TRAIN_STEPS"]):
+            # print("step")
 
             if NET_CONFIG["arch"] == "mlp":
                 if INIT_HP["CUSTOM_ENV"]:
                     # state = [np.concatenate(state)] 
-                    state = [np.concatenate(v) for v in state.values()]
+                    state_dict = {a: v.flatten() for a, v in state.items()}
                 else:
                     state = [x.flatten() for x in state]
             else:
                 state = state[np.newaxis, :, :]
             
-            state_dict = make_dict(state, 1)
+                state_dict = make_dict(state, 1)
             
             
             # Get next action from agent
@@ -148,28 +148,31 @@ if __name__ == "__main__":
 
             # Act in environment
             action_tuple  = tuple(action.values())
+            # print(action_tuple)
             
             if INIT_HP["CUSTOM_ENV"]:
-                next_state, reward, termination, truncation, info = env.step(action_tuple[0])
+                next_state, reward, termination, truncation, info = env.step(action_tuple)
             if INIT_HP["CUSTOM_ENV"] and NET_CONFIG["arch"] == "mlp":
-                next_state = [np.concatenate(v) for v in next_state.values()]
+                next_state_dict = {a: v.flatten() for a, v in next_state.items()}
             
-            termination_dict = make_dict([termination], 1)
+            # termination_dict = make_dict([termination], 1)
 
             state = next_state
 
             # Return when the episode is finished
             reset_noise_indices = []
-            term_array = np.array(list(termination_dict.values())).transpose()
+            term_array = np.array(list(termination.values())).transpose()
+            truncation = np.array(list(truncation.values())).transpose()
+
             for i in range(num_envs):
-                if all(term_array) or truncation:
+                if all(term_array) or all(truncation):
                     reset_noise_indices.append(i)
                     
             # Render
             env.render()
 
             agent.pop[0].reset_action_noise(reset_noise_indices)
-            if all(term_array) or truncation:
+            if all(term_array) or all(truncation):
                 break
         
     env.close()

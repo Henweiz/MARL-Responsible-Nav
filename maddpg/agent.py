@@ -180,7 +180,7 @@ class MADDPGAgent:
                     # Act in environment
                     action_tuple  = tuple(action.values())
                     action_tuple = tuple(x.item() for x in action_tuple)
-                    #print("action = ", action_tuple)
+                    # print("action = ", action_tuple)
 
                     FeAR_weight = self.INIT_HP["FeAR_weight"]
 
@@ -206,6 +206,7 @@ class MADDPGAgent:
                     # Act in environment
                     action_tuple  = tuple(action.values())
                     action_tuple = tuple(x.item() for x in action_tuple)
+                    # print(action_tuple)
                     next_state, reward, termination, truncation, info = env.step(action_tuple)
                     if not self.INIT_HP["CUSTOM_ENV"]:
                         speed_reward = cal_speed_reward(env)
@@ -290,7 +291,7 @@ class MADDPGAgent:
                 term_array = np.array(list(termination_dict.values())).transpose()
                 trunc_array = np.array(list(truncation.values())).transpose()
                 for i in range(num_envs):
-                    if all(term_array) or truncation:
+                    if all(term_array) or all(trunc_array):
                         reset_noise_indices.append(i)
                             
                         completed_episode_scores.append(scores[i])

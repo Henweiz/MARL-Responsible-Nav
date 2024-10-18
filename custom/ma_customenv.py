@@ -14,7 +14,6 @@ from . import Responsibility
 from custom.grid_world import GWorld
 
 
-rng = np.random.default_rng(seed=0)
 
 N_DISCRETE_ACTIONS = 9
 N_AGENTS = 3
@@ -46,7 +45,7 @@ COLOR_MAP = {
 class CustomMAEnv(ParallelEnv):
     
 
-    def __init__(self, render=False, fear=True):
+    def __init__(self, render=False, fear=True, seed=None):
         """
         The init method takes in environment arguments and
          should define the following attributes:
@@ -69,6 +68,7 @@ class CustomMAEnv(ParallelEnv):
         self.rendering = render
         self.fear = fear
         self.window = None
+        self.rng = np.random.default_rng(seed=seed)
 
         if self.rendering:
             self.window_width = 800
@@ -183,6 +183,7 @@ class CustomMAEnv(ParallelEnv):
         
         for (idx, action) in enumerate(actions):
             # idx = int(agent[-1])
+            # print(idx, ', ', action)
             self.Action4Agents[idx] = (idx, action)
 
 
@@ -206,14 +207,14 @@ class CustomMAEnv(ParallelEnv):
             if self.apples.__contains__(apple_id):
                 self.apples.pop(apple_id)
                 for a in self.agents:            
-                    self.rewards[a] += 20 
+                    self.rewards[a] += 30 
                 if not self.apples:
                     self.truncation = {a: True for a in self.agents}
                 # self.agents = []
         distance = {}
         for i, agent in enumerate(self.agents):
             if agent_crashes[i]:
-                self.rewards[agent] -= 50
+                self.rewards[agent] -= 20
                 self.truncation = {a: True for a in self.agents}
                 # self.agents = []
             closest_apple = 100
@@ -233,8 +234,8 @@ class CustomMAEnv(ParallelEnv):
         for i in self.agents:
             self.observations[i] = observation
 
-        if self.rendering:
-            self.render()    
+        # if self.rendering:
+        #     self.render()    
 
         infos = {"fear": FeAR_dict}
 
@@ -282,7 +283,8 @@ class CustomMAEnv(ParallelEnv):
         if len(self.AgentLocations) < num_agents:
             [locX,locY] = np.where(self.Region==1)
 
-        LocIdxs = rng.choice(locX.shape[0], size=(num_agents-len(self.AgentLocations)), replace=False, shuffle=False)
+        
+        LocIdxs = self.rng.choice(locX.shape[0], size=(num_agents-len(self.AgentLocations)), replace=False, shuffle=False)
         LocIdxs.sort()
 
         for Idx in LocIdxs:

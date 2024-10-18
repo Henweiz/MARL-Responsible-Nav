@@ -50,7 +50,7 @@ if __name__ == '__main__':
         "TAU": 0.01,  # For soft update of target parameters
         "POLICY_FREQ": 1,  # Policy frequnecy
         "POP_SIZE": 1,  # Population size, 1 if we do not want to use Hyperparameter Optimization
-        "MAX_EPISODES": 5000,
+        "MAX_EPISODES": 3000,
         "TRAIN_STEPS": 200,
         "LOAD_AGENT": False, # Load previous trained agent
         "SAVE_AGENT": True, # Save the agent
@@ -64,7 +64,7 @@ if __name__ == '__main__':
 
     # Path & filename to save or load
     path = "./models/custom/multi/MADDPG"
-    filename = "MADDPG_3.pt"
+    filename = "MADDPG_2.pt"
 
     # Define the network configuration
     if INIT_HP["ARCH"] == "mlp":
