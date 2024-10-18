@@ -85,7 +85,7 @@ class MADDPGAgent:
             )
         else:
             self.pop = []
-            agent = MADDPG(
+            agent = MATD3(
                 state_dims=self.state_dim,
                 action_dims=self.action_dim,
                 one_hot=self.one_hot,
@@ -293,8 +293,6 @@ class MADDPGAgent:
                 
                 agent.reset_action_noise(reset_noise_indices)
                 if all(term_array) or truncation:
-                    print(term_array)
-                    print(truncation)
                     break
                 if idx_step == (evo_steps -1):
                     completed_episode_scores.append(scores[0])
@@ -363,16 +361,18 @@ class MADDPGAgent:
         return [agent.steps[-1] for agent in self.pop]
     
     def total_loss(self):
-        # Get the last step (last dictionary in the list)
-        try:
-            last_step = self.loss[-1]
-        # No learning happened yet, so we return 0    
-        except:
-            return 0
+        # Iterate over all steps in reverse order (starting from the most recent)
+        for step in reversed(self.loss):
+            # Filter meaningful losses (i.e., those that are not None or 0)
+            meaningful_losses = [loss for loss, _ in step.values() if loss not in [None, 0]]
+            
+            # If we find any meaningful loss, return their sum
+            if meaningful_losses:
+                return sum(meaningful_losses)
         
-        # Calculate the total loss
-        total_loss = sum(loss for loss, _ in last_step.values())
-        return total_loss
+        # If no meaningful loss is found, return 0
+        return 0
+
     
     # Make a dictionary with agent ID and their corresponding tuple
     def make_dict(self, tuple):
