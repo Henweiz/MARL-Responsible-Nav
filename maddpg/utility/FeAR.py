@@ -71,7 +71,7 @@ def cal_FeAR_ij(i, j, action, MdR, before_action_env, trajectory_length, epsilon
     agent_i = before_action_env.unwrapped.controlled_vehicles[i]
     agent_j = before_action_env.unwrapped.road.vehicles[j]
 
-    if agent_i == agent_j or action[i] == MdR[i]:
+    if agent_i == agent_j or action[i] == MdR[i] or np.linalg.norm(np.array(agent_i.position) - np.array(agent_j.position)) > (10 * (trajectory_length + 1)):
         return 0.0
 
     else:
