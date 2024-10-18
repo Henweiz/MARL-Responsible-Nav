@@ -204,23 +204,25 @@ class CustomMAEnv(ParallelEnv):
             apple_id = app[1]
             agent_id = app[0]
             # print(apple_id)
-            if self.apples.__contains__(apple_id):
-                self.apples.pop(apple_id)
-                for a in self.agents:            
-                    self.rewards[a] += 30 
-                if not self.apples:
-                    self.truncation = {a: True for a in self.agents}
-                # self.agents = []
+            if apple_id == agent_id:
+                if self.apples.__contains__(apple_id):
+                    self.apples.pop(apple_id)
+                    for a in self.agents:            
+                        self.rewards[a] += 3 
+                    if not self.apples:
+                        self.truncation = {a: True for a in self.agents}
+            
         distance = {}
         for i, agent in enumerate(self.agents):
             if agent_crashes[i]:
-                self.rewards[agent] -= 20
+                self.rewards[agent] -= 2
                 self.truncation = {a: True for a in self.agents}
                 # self.agents = []
-            closest_apple = 100
-            for apple_loc in self.apples.values():
-                
-                if manhattan_dist(self.World.AgentLocations[i], apple_loc) < closest_apple:
+            # closest_apple = 100
+            for apple_key, apple_loc in self.apples.items():
+                apple_id = int(apple_key[-1])
+                # if manhattan_dist(self.World.AgentLocations[i], apple_loc) < closest_apple:
+                if apple_id == i:
                     closest_apple = manhattan_dist(self.World.AgentLocations[i], apple_loc)
 
             distance[agent] = closest_apple
@@ -229,10 +231,19 @@ class CustomMAEnv(ParallelEnv):
             
         self.prev_distance = distance
         observation = self.World.WorldState
-        for loc in self.apples.values():
-            observation[loc] += 9
-        for i in self.agents:
-            self.observations[i] = observation
+        # for loc in self.apples.values():
+        #     observation[loc] += 9
+        for agent in self.agents:
+            for id, loc in self.apples.items():
+                if int(id[-1]) == int(agent[-1]):
+                    observation[loc] += 9
+                    self.observations[agent] = observation
+                    observation = self.World.WorldState
+                    break
+                else:
+                    self.observations[agent] = observation
+
+
 
         # if self.rendering:
         #     self.render()    
