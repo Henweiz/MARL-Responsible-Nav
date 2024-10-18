@@ -19,12 +19,11 @@ rng = np.random.default_rng()
 N_DISCRETE_ACTIONS = 9
 
 inference = False
-SaveImagestoFolder = 'GW_Snaps'
-scenario_name = 'GameMap'
 MdR4Agents_Default = 0 #Stay
 ExhaustiveActions = False
 Specific_MdR4Agents = [] #None
 Scenario = grid_world.LoadJsonScenario(scenario_name="Level 3")
+# Scenario = grid_world.LoadJsonScenario(scenario_name="GameMap")
 num_agents = Scenario['N_Agents']
 
 ActionNames, ActionMoves = custom_agent.DefineActions()
@@ -33,10 +32,10 @@ print('N_Agents : ',num_agents)
 COLOR_MAP = {
     -1: (0, 0, 0),   # Black for inactive cells
     0: (255, 255, 255), # White for blank cells
-    1: (255, 215, 0),  # Red for the learned agent
+    1: (255, 215, 0),  # Yellow for the learned agent
     2: (0, 0, 255),  # Blue for other agents
     3: (0, 0, 255),  # Blue for another agent
-    9: (255, 0, 0), # Gold for the apple
+    9: (255, 0, 0), # Red for the apple
     11: (255, 0 ,0),
     12: (0, 0, 255),  
     13: (0, 0, 255)
@@ -122,13 +121,6 @@ class CustomEnv(gym.Env):
         #FeAL_vals, ValidMoves_moveDeRigueur_FeAL, ValidMoves_action_FeAL, \
         #   ValidityOfMoves_Mdr_FeAL, ValidityOfMoves_action_FeAL =  Responsibility.FeAL(self.World, Action4Agents, self.MdR4Agents)
 
-        
-        
-                
-        
-#         print("Action4AGENTS: ----- ", Action4Agents)
-        # print(self.apples)
-
         agent_crashes, restricted_moves, apples, apples_caught = self.World.UpdateGWorld(ActionID4Agents=Action4Agents, apples=self.apples, apple_eaters=[0])
         
         reward = 0
@@ -141,10 +133,7 @@ class CustomEnv(gym.Env):
 
         for loc in self.World.AgentLocations:
             distance.append(manhattan_dist(loc, apple_loc))
-        
-
-        # OBSERVATIONS   Shape (10,16)
-        
+                
         self.episode_length += 1
 
         if agent_crashes[RL_agentID]:
@@ -363,7 +352,6 @@ class CustomEnv(gym.Env):
         self.prev_distance = dist
 
 
-        self.observation = observation
         self.observation = observation
         return (observation, {})  # reward, done, info can't be included
     

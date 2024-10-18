@@ -1,7 +1,8 @@
 import gymnasium as gym
-from gymnasium.wrappers import RecordVideo
+# from gymnasium.wrappers import RecordVideo
 from maddpg.agent import MADDPGAgent
 from custom.customenv import CustomEnv
+from custom.ma_customenv import CustomMAEnv
 
 import os
 # import imageio
@@ -50,7 +51,7 @@ if __name__ == "__main__":
         "POP_SIZE": 1,  # Population size, 1 if we do not want to use Hyperparameter Optimization
         "MAX_EPISODES": 1,
         "TRAIN_STEPS": 200,
-        "LOAD_AGENT": False, # Load previous trained agent
+        "LOAD_AGENT": True, # Load previous trained agent
         "SAVE_AGENT": False, # Save the agent
         "LOGGING": False,
         "RESUME": False,
@@ -58,8 +59,8 @@ if __name__ == "__main__":
     }
 
     # Path & filename to save or load
-    path = "./models/custom/MADDPG"
-    filename = "MADDPG_5k_2.pt"
+    path = "./models/custom/multi/MADDPG"
+    filename = "MADDPG_3.pt"
 
     # Define the network configuration
     if INIT_HP["ARCH"] == "mlp":
@@ -85,7 +86,8 @@ if __name__ == "__main__":
     #env = gym.make("intersection-multi-agent-v1", render_mode=None, config = config2)
     #print(env.unwrapped.config)
     #env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
-    env = CustomEnv(render=True, fear=True)
+    # env = CustomEnv(render=True, fear=True)
+    env = CustomMAEnv(render=True, fear=False)
     obs, info = env.reset(INIT_HP["SEED"])
     #env.num_agents = env.unwrapped.config['controlled_vehicles']
 
@@ -93,8 +95,8 @@ if __name__ == "__main__":
     # Logger
     # Configure the multi-agent algo input arguments
     if NET_CONFIG["arch"] == "mlp":
-        obs = obs.flatten()
-        state_dim = [obs.shape for agent, _ in enumerate(env.agents)]
+        # obs = obs.flatten()
+        state_dim = [obs[agent].flatten().shape for agent in env.agents]
         print(state_dim)
         one_hot = False
     action_dim = [env.action_space.n for agent, _ in enumerate(env.agents)]
@@ -115,7 +117,7 @@ if __name__ == "__main__":
 
     
 
-    for videos in range(10):
+    for videos in range(20):
         state, info = env.reset()
         termination = [False]
         truncation = False
@@ -124,7 +126,8 @@ if __name__ == "__main__":
 
             if NET_CONFIG["arch"] == "mlp":
                 if INIT_HP["CUSTOM_ENV"]:
-                    state = [np.concatenate(state)] 
+                    # state = [np.concatenate(state)] 
+                    state = [np.concatenate(v) for v in state.values()]
                 else:
                     state = [x.flatten() for x in state]
             else:
@@ -149,7 +152,7 @@ if __name__ == "__main__":
             if INIT_HP["CUSTOM_ENV"]:
                 next_state, reward, termination, truncation, info = env.step(action_tuple[0])
             if INIT_HP["CUSTOM_ENV"] and NET_CONFIG["arch"] == "mlp":
-                next_state = [np.concatenate(next_state)]   
+                next_state = [np.concatenate(v) for v in next_state.values()]
             
             termination_dict = make_dict([termination], 1)
 

@@ -137,13 +137,15 @@ class MADDPGAgent:
                 #Update observation to fit into our NN
                 if self.NET_CONFIG["arch"] == "mlp":
                     if self.INIT_HP["CUSTOM_ENV"]:
-                        state = [np.concatenate(state)] 
+                        # print('State: ', state)
+                        state_dict = {a: v.flatten() for a, v in state.items()}
+                        # state = [val.flatten() for val in state.values()]
                     else:
                         state = [x.flatten() for x in state]
                 else:
-                    state = state[np.newaxis, :, :]
+                    state = state[np.newaxis, :, :]        
+                    state_dict = self.make_dict(state)
                 
-                state_dict = self.make_dict(state)
                 if self.NET_CONFIG["arch"] == "cnn":
                     for i in range(self.INIT_HP["N_AGENTS"]):
                         obs = state_dict[f'agent_{i}']
@@ -186,7 +188,10 @@ class MADDPGAgent:
                         next_state, reward, termination, truncation, info = env.step(action_tuple)
                         FeAR = info["fear"]
                         
-                        reward = np.array(reward) + FeAR_weight * np.sum(FeAR)
+                        reward = {a: FeAR_weight * FeAR[a] + reward[a] for a in reward.keys()}
+                        reward = np.array(list(reward.values()))
+                        FeAR = np.sum(list(FeAR.values()))
+
                     else:
                         FeAR = cal_FeAR(env, action_tuple, self.INIT_HP)
                         next_state, reward, termination, truncation, info = env.step(action_tuple)
@@ -211,17 +216,17 @@ class MADDPGAgent:
 
 
                 if self.INIT_HP["CUSTOM_ENV"] and self.NET_CONFIG["arch"] == "mlp":
-                    next_state = [np.concatenate(next_state)]   
+                    next_state_dict = {a: v.flatten() for a, v in next_state.items()}
                 
                 # Flatten next state observation
-                if self.NET_CONFIG["arch"] == "mlp":
+                if self.NET_CONFIG["arch"] == "mlp" and not self.INIT_HP["CUSTOM_ENV"]:
                     next_state_dict = self.make_dict([x.flatten() for x in next_state])
-                else:
-                    next_state_dict = self.make_dict(next_state[np.newaxis, :, :])
-                    next_state_dict = {
-                        agent_id: ns[np.newaxis, :, :]
-                        for agent_id, ns in next_state_dict.items()
-                    }
+                # else:
+                #     next_state_dict = self.make_dict(next_state[np.newaxis, :, :])
+                #     next_state_dict = {
+                #         agent_id: ns[np.newaxis, :, :]
+                #         for agent_id, ns in next_state_dict.items()
+                #     }
 
                 reward_dict = self.make_dict(reward)
                 # fear_score += info["fear"]  
@@ -238,7 +243,7 @@ class MADDPGAgent:
                     }
                 
 
-                termination_dict = self.make_dict(termination)
+                termination_dict = (termination)
                 cont_actions = {k: np.squeeze(v) for (k,v) in cont_actions.items()}
 
                 # Save experiences to replay buffer
@@ -283,6 +288,7 @@ class MADDPGAgent:
                 # Return when the episode is finished
                 reset_noise_indices = []
                 term_array = np.array(list(termination_dict.values())).transpose()
+                trunc_array = np.array(list(truncation.values())).transpose()
                 for i in range(num_envs):
                     if all(term_array) or truncation:
                         reset_noise_indices.append(i)
@@ -292,9 +298,7 @@ class MADDPGAgent:
 
                 
                 agent.reset_action_noise(reset_noise_indices)
-                if all(term_array) or truncation:
-                    print(term_array)
-                    print(truncation)
+                if all(term_array) or all(trunc_array):
                     break
                 if idx_step == (evo_steps -1):
                     completed_episode_scores.append(scores[0])
