@@ -201,14 +201,16 @@ class CustomMAEnv(ParallelEnv):
         # print('step')
         # print(apples_caught)
         for app in apples_caught:
-            apple_id = app[1]
+            apple_key = app[1]
             agent_id = app[0]
+            agent_key = f'agent_{agent_id}'
+            apple_id = int(apple_key[-1])
             # print(apple_id)
             if apple_id == agent_id:
-                if self.apples.__contains__(apple_id):
-                    self.apples.pop(apple_id)
+                if self.apples.__contains__(apple_key):
+                    self.apples.pop(apple_key)
                     for a in self.agents:            
-                        self.rewards[a] += 3 
+                        self.rewards[a] += 5 
                     if not self.apples:
                         self.truncation = {a: True for a in self.agents}
             
@@ -230,19 +232,18 @@ class CustomMAEnv(ParallelEnv):
                 self.rewards[agent] += 0.1 
             
         self.prev_distance = distance
-        observation = self.World.WorldState
+        observation = self.World.WorldState.copy()
         # for loc in self.apples.values():
         #     observation[loc] += 9
         for agent in self.agents:
-            for id, loc in self.apples.items():
-                if int(id[-1]) == int(agent[-1]):
-                    observation[loc] += 9
-                    self.observations[agent] = observation
-                    observation = self.World.WorldState
-                    break
-                else:
-                    self.observations[agent] = observation
-
+            agent_id = int(agent[-1])
+            if agent_id in [int(id[-1]) for id in self.apples.keys()]:
+                for id, loc in self.apples.items():
+                    if int(id[-1]) == agent_id:
+                        observation[loc] += 9
+                        break
+            self.observations[agent] = observation
+            observation = self.World.WorldState.copy()
 
 
         # if self.rendering:
