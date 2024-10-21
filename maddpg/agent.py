@@ -244,7 +244,7 @@ class MADDPGAgent:
                     }
                 
 
-                termination_dict = (termination)
+                termination_dict = termination
                 cont_actions = {k: np.squeeze(v) for (k,v) in cont_actions.items()}
 
                 # Save experiences to replay buffer

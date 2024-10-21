@@ -109,7 +109,9 @@ if __name__ == '__main__':
             "Learn step": INIT_HP["LEARN_STEP"],
             "Train step": INIT_HP["TRAIN_STEPS"],
             "Tau": INIT_HP["TAU"],
-            "Population size": INIT_HP["POP_SIZE"]
+            "Population size": INIT_HP["POP_SIZE"],
+            "WITH_FEAR": INIT_HP["WITH_FEAR"],
+            "FeAR_weight": INIT_HP["FeAR_weight"]
         }
         if INIT_HP["RESUME"]:
             logger = Logger(filename, config, id=INIT_HP["RESUME_ID"])

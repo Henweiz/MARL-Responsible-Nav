@@ -153,8 +153,21 @@ class CustomMAEnv(ParallelEnv):
         infos = {"fear": 0.0}
         # self.state = observations
         self.observations = {agent: self.observation for agent in self.agents}
+        observation = self.World.WorldState.copy()
+        # for loc in self.apples.values():
+        #     observation[loc] += 9
+        for agent in self.agents:
+            agent_id = int(agent[-1])
+            if agent_id in [int(id[-1]) for id in self.apples.keys()]:
+                for id, loc in self.apples.items():
+                    if int(id[-1]) == agent_id:
+                        observation[loc] += 9
+                        break
+            self.observations[agent] = observation
+            observation = self.World.WorldState.copy()
+        
         self.num_moves = 0
-        self.prev_distance = {agent: 100 for agent in self.agents}
+        self.prev_distance = {agent: None for agent in self.agents}
 
         return self.observations, infos
     
@@ -178,9 +191,6 @@ class CustomMAEnv(ParallelEnv):
         self.num_moves += 1
         self.rewards = {agent: 0 for agent in self.agents}
         
-        self.terminations = {a: False for a in self.agents}
-        self.truncation = {a: False for a in self.agents}
-        
         for (idx, action) in enumerate(actions):
             # idx = int(agent[-1])
             # print(idx, ', ', action)
@@ -189,7 +199,6 @@ class CustomMAEnv(ParallelEnv):
 
         FeAR_dict = {a: 0.0 for a in self.agents}
         if self.fear:
-            FeAR_dict = {a: 0.0 for a in self.agents}
             for agent in self.agents:
                 agent_id = int(agent[-1])
                 max_distance = 5
@@ -208,19 +217,21 @@ class CustomMAEnv(ParallelEnv):
             # print(apple_id)
             if apple_id == agent_id:
                 if self.apples.__contains__(apple_key):
-                    self.apples.pop(apple_key)
-                    for a in self.agents:            
-                        self.rewards[a] += 5 
-                    if not self.apples:
-                        self.truncation = {a: True for a in self.agents}
+                    self.apples.pop(apple_key)            
+                    self.rewards[agent_key] += 20
+                    self.rewards = {a: (v + 5) for a, v in self.rewards.items()}
+                    self.terminations[agent_key] = True 
+        if not self.apples:
+            self.truncation = {a: True for a in self.agents}
             
         distance = {}
         for i, agent in enumerate(self.agents):
             if agent_crashes[i]:
-                self.rewards[agent] -= 2
+                self.rewards[agent] -= 10
                 self.truncation = {a: True for a in self.agents}
+                self.terminations[agent] = True
                 # self.agents = []
-            # closest_apple = 100
+            closest_apple = None
             for apple_key, apple_loc in self.apples.items():
                 apple_id = int(apple_key[-1])
                 # if manhattan_dist(self.World.AgentLocations[i], apple_loc) < closest_apple:
@@ -228,8 +239,9 @@ class CustomMAEnv(ParallelEnv):
                     closest_apple = manhattan_dist(self.World.AgentLocations[i], apple_loc)
 
             distance[agent] = closest_apple
-            if self.prev_distance[agent] > distance[agent]:
-                self.rewards[agent] += 0.1 
+            if self.prev_distance[agent] is not None and distance[agent] is not None:
+                if self.prev_distance[agent] > distance[agent]:
+                    self.rewards[agent] += 0.1 
             
         self.prev_distance = distance
         observation = self.World.WorldState.copy()
@@ -347,12 +359,6 @@ class CustomMAEnv(ParallelEnv):
 
         observation = self.World.WorldState
         self.apples_eaten = 0
-        for loc in self.apples.values():
-            observation[loc] += 9
-        dist = []
-        for loc in self.World.AgentLocations:
-            dist.append(manhattan_dist(loc, next(iter(self.apples.values()))))
-        self.prev_distance = dist
 
 
         self.observation = observation
