@@ -249,6 +249,11 @@ if __name__ == '__main__':
         if INIT_HP["LOGGING"]:
             logger.log(np.mean(mean_scores), agents.total_loss(), agents.agents_steps()[0])
 
+
+        if i % 500 == 0 and INIT_HP["SAVE_AGENT"]:
+            filename1 = "MADDPG_4agent{}eps_wFeAR_1.5_trl1.pt".format(i)
+            agents.save_checkpoint(path, filename1)
+
         #print(f"--- Global steps {total_steps} ---")
         print(f"--- Episode: {i} ---")
         print(f"Steps {agents.agents_steps()}")

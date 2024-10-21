@@ -160,8 +160,8 @@ def cal_FeAR(env, action_tuple, INIT_HP):
             for j in range(len(env.unwrapped.road.vehicles) - 1):
                 FeAR[i,j] = cal_FeAR_ij(i, j, action_tuple, MdR, before_action_env, INIT_HP["FeAR_trajectory_length"])
 
-    print("FeAR = ")
-    print(FeAR)
+    print(f"{FeAR}=")
+   
 
     del before_action_env
 
