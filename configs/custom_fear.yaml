@@ -4,6 +4,7 @@ SEED: 42
 MAX_EPISODES: 2000
 TRAIN_STEPS: 150
 CHANNELS_LAST: False
+DISCRETE_ACTIONS: True
 
 # Learning parameters
 ARCH: "mlp"

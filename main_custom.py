@@ -8,6 +8,7 @@ from tqdm import trange
 from PIL import Image, ImageDraw
 import gymnasium as gym
 import highway_env
+import util
 
 from agilerl.components.multi_agent_replay_buffer import MultiAgentReplayBuffer
 from agilerl.hpo.mutation import Mutations
@@ -20,10 +21,6 @@ from log import Logger
 from custom.customenv import CustomEnv
 from custom.ma_customenv import CustomMAEnv
 from custom.grid_world import GWorld
-
-def addDim(arr):
-    arr = arr[np.newaxis, :, :]
-    return arr
 
 
 if __name__ == '__main__':
@@ -65,15 +62,7 @@ if __name__ == '__main__':
             "kernel_size": [2, 2],
             "stride_size": [2, 2]
         }
-
-    # Number of parallel environment
-    num_envs = 1
-
-    # Define the simple spread environment as a parallel environment
-    env = CustomMAEnv(fear=INIT_HP["WITH_FEAR"], seed=INIT_HP["SEED"])
-    obs, info = env.reset()
-
-    env.agents = [f'agent_{i}' for i in range(env.num_agents)]
+    
     # Logger
     if INIT_HP["LOGGING"]:
         config = INIT_HP
@@ -82,21 +71,11 @@ if __name__ == '__main__':
         else:
             logger = Logger(filename, config)
 
-    # Configure the multi-agent algo input arguments
-    if NET_CONFIG["arch"] == "mlp":
-        # obs = obs.flatten()
-        state_dim = [obs[agent].flatten().shape for agent in env.agents]
-        print(state_dim)
-        one_hot = False
-    else:
-        obs = addDim(obs)
-        state_dim = [obs.shape for agent, _ in enumerate(env.agents)]
-        print(state_dim)
-        one_hot = False
-    action_dim = [env.action_space.n for agent, _ in enumerate(env.agents)]
-    INIT_HP["DISCRETE_ACTIONS"] = True
-    INIT_HP["MAX_ACTION"] = None
-    INIT_HP["MIN_ACTION"] = None
+    # Number of parallel environment
+    num_envs = 1
+
+    # Define the simple spread environment as a parallel environment
+    env, state_dim, action_dim, one_hot = util.create_custom_ma_env(INIT_HP["ARCH"], INIT_HP["WITH_FEAR"], INIT_HP["SEED"])
 
     # Not applicable to MPE environments, used when images are used for observations (Atari environments)
     if INIT_HP["CHANNELS_LAST"]:
@@ -107,6 +86,10 @@ if __name__ == '__main__':
     # Append number of agents and agent IDs to the initial hyperparameter dictionary
     INIT_HP["N_AGENTS"] = env.num_agents
     INIT_HP["AGENT_IDS"] = env.agents
+
+    # Idk why, but I have to assign it here instead of in the yaml file. Otherwise it breaks
+    INIT_HP["MAX_ACTION"] = None
+    INIT_HP["MIN_ACTION"] = None
 
     agents = MADDPGAgent(state_dim, action_dim, one_hot, NET_CONFIG, INIT_HP, num_envs, device)
 
@@ -147,4 +130,3 @@ if __name__ == '__main__':
 
     pbar.close()
     env.close()
-
