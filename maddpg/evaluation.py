@@ -1,7 +1,7 @@
 import gymnasium as gym
 from gymnasium.wrappers import RecordVideo
 from agent import MADDPGAgent
-
+from pickle import dump
 import highway_env
 
 import os
@@ -19,6 +19,7 @@ from agilerl.wrappers.pettingzoo_wrappers import PettingZooVectorizationParallel
 
 from agent import MADDPGAgent
 from highway_env.envs.intersection_env import IntersectionEnv
+import json
 
 
 
@@ -32,12 +33,12 @@ def make_dict(tuple, n_agents):
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
+    episodes = 10
     # Path & filename to save or load
-    path = "./models/intersection/mlp"
+    path = "./models/intersection/"
     seed = 66
     #filename = "MADDPG_trained_4agent2000eps{}seed_wFeAR.pt".format(seed)
-    filename = "MADDPG_trained_4agent1000eps_woFeAR_test8.pt"
+    filename = "MADDPG_trained_4agent2000eps_woFeAR_best.pt"
 
     # Number of parallel environment
     num_envs = 1
@@ -48,7 +49,7 @@ if __name__ == "__main__":
         "type": "MultiAgentObservation",
         "observation_config": {
             "type": "Kinematics",
-            "vehicles_count": 15,
+            "vehicles_count": 10,
             "features": ["presence", "x", "y", "vx", "vy", "cos_h", "sin_h"],
             "features_range": {
                 "x": [-100, 100],
@@ -60,12 +61,12 @@ if __name__ == "__main__":
         }
     },
     "action": {"type": "MultiAgentAction",
-               "action_config": {"type": "DiscreteAction"}},
-    "initial_vehicle_count": 10,
+               "action_config": {"type": "DiscreteMetaAction"}},
+    "initial_vehicle_count": 0,
     "controlled_vehicles": 4,
-    "collision_reward": -5,
+    "collision_reward": -20,
     "high_speed_reward": 1,
-    "arrived_reward": 1,
+    "arrived_reward": 10,
     "policy_frequency": 1
     }
     
@@ -94,39 +95,10 @@ if __name__ == "__main__":
         "controlled_vehicles": 2
     }
 
-    config3 = {
-        "id": "intersection-multi-agent-v1",
-        "observation": {
-            "type": "MultiAgentObservation",
-            "observation_config": {
-                "type": "OccupancyGrid",
-                    "vehicles_count": 15,
-                    "features": ["presence", "x", "y", "vx", "vy", "cos_h", "sin_h"],
-                    "features_range": {
-                        "x": [-100, 100],
-                        "y": [-100, 100],
-                        "vx": [-20, 20],
-                        "vy": [-20, 20]
-                    },
-                    "grid_size": [[-32, 32], [-32, 32]],
-                    "grid_step": [2, 2],
-                    "absolute": False
-            }
-        },
-        "action": {"type": "MultiAgentAction",
-               "action_config": {"type": "DiscreteMetaAction",
-                                 "lateral": False}},
-        "initial_vehicle_count": 10,
-        "controlled_vehicles": 4,
-        "collision_reward": -20,
-        "high_speed_reward": 1,
-        "arrived_reward": 10,
-        "policy_frequency": 1
-    }
 
     # Define the simple spread environment as a parallel environment
     #env = gym.make("intersection-multi-agent-v1", render_mode="human", config = config)
-    env = IntersectionEnv(render_mode="human")
+    env = IntersectionEnv(render_mode=None)
     env.unwrapped.config.update(config)
     print(env.unwrapped.config)
     #env = PettingZooVectorizationParallelWrapper(env, n_envs=num_envs)
@@ -184,10 +156,19 @@ if __name__ == "__main__":
     #env.unwrapped.set_record_video_wrapper(env)
     env.unwrapped.config["simulation_frequency"] = 60  # Higher FPS for rendering
 
-    for videos in range(10):
+    num_crashes = []
+    num_arrivals = []
+    dist_to_dest = np.zeros((episodes,n_agents))
+    average_min_distance = np.zeros((episodes,n_agents))
+    
+    for videos in range(episodes):
+        
+        average_min_distance_per_episode = []
+        
         done = truncation = False
         #state, info = env.reset(seed=seed)
         state, info = env.reset()
+        
         while not (done or truncation):
             #print("step")
             agent_mask = info["agent_mask"] if "agent_mask" in info.keys() else None
@@ -216,15 +197,36 @@ if __name__ == "__main__":
             # Act in environment
             action_tuple  = tuple(action.values())
             action_tuple = tuple(x.item() for x in action_tuple)
+            
             next_state, _, _, truncation, info = env.step(action_tuple)
+            
             reward = info["agents_rewards"]
             termination = info["agents_terminated"]
+            termination_bad = info["agents_terminated_bad"]
+            termination_good = info["agents_terminated_good"]
+            nearest_vehicles = [env.unwrapped.road.close_objects_to(agent, env.PERCEPTION_DISTANCE, count=1, see_behind=False, sort=True, vehicles_only=True) for agent in env.controlled_vehicles]
+            min_distance_per_step = [np.linalg.norm(np.array(nearest_vehicle[0].position)) if nearest_vehicle != [] else 250 for nearest_vehicle in nearest_vehicles]
+            average_min_distance_per_episode.append(min_distance_per_step)
+            
             state = next_state
-            if all(termination):
+            
+            if all(termination_good) or any(termination_bad):
+                num_crashes.append(sum(termination_bad))
+                num_arrivals.append(sum(termination_good))
+                distances = np.array([torch.nn.functional.relu(torch.Tensor([25 - vehicle.lane.local_coordinates(vehicle.position)[0]])) for vehicle in env.controlled_vehicles if ("il" in vehicle.lane_index[0]
+            and "o" in vehicle.lane_index[1])])
+                if distances.shape[0] == 4:
+                    dist_to_dest[videos] = distances
+                average_min_distance[videos] = np.average(np.array(average_min_distance_per_episode), axis=0)
                 done = True
             
             # Render
-            env.render()
+            #env.render()
     env.close()
-
+    stat_dict = {"num_crashes": num_crashes, "num_arrivals": num_arrivals}
+    np.savetxt('average_min_distance.txt',average_min_distance)
+    np.savetxt("dist_to_dest.txt",dist_to_dest)
+    with open('eval_stats.json', 'w') as convert_file: 
+     convert_file.write(json.dumps(stat_dict))
+    
 
