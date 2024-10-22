@@ -37,7 +37,9 @@ if __name__ == '__main__':
     }
 
     # Load YAML config file
-    with open('configs\custom.yaml', 'r') as file:
+    config_path = "configs\custom.yaml"
+    
+    with open(config_path, 'r') as file:
         INIT_HP = yaml.safe_load(file)
 
     INIT_HP.update(LOGGING)
@@ -74,8 +76,38 @@ if __name__ == '__main__':
     # Number of parallel environment
     num_envs = 1
 
-    # Define the simple spread environment as a parallel environment
-    env, state_dim, action_dim, one_hot = util.create_custom_ma_env(INIT_HP["ARCH"], INIT_HP["WITH_FEAR"], INIT_HP["SEED"])
+    # Initialize the environment
+    if INIT_HP["CUSTOM_ENV"]:
+        env, state_dim, action_dim, one_hot = util.create_custom_ma_env(INIT_HP["ARCH"], INIT_HP["WITH_FEAR"], INIT_HP["SEED"])
+    else:
+        env_config = {
+            "id": "intersection-multi-agent-v1",
+            "observation": {
+                "type": "MultiAgentObservation",
+                "observation_config": {
+                    "type": "Kinematics",
+                    "vehicles_count": 15,
+                    "features": ["presence", "x", "y", "vx", "vy", "cos_h", "sin_h"],
+                    "features_range": {
+                        "x": [-100, 100],
+                        "y": [-100, 100],
+                        "vx": [-20, 20],
+                        "vy": [-20, 20]
+                    },
+                    "absolute": True
+                }
+            },
+            "action": {"type": "MultiAgentAction",
+                    "action_config": {"type": "DiscreteMetaAction","longitudinal": True,
+                        "lateral": False, "target_speed":[0,4.5,9]}
+                    },
+            "initial_vehicle_count": 10,
+            "controlled_vehicles": 4,
+            "collision_reward": -5,
+            "high_speed_reward": 1,
+            "arrived_reward": 1
+        }
+        env, state_dim, action_dim, one_hot = util.create_intersection_env(INIT_HP["ARCH"], env_config, INIT_HP["WITH_FEAR"], INIT_HP["SEED"])
 
     # Not applicable to MPE environments, used when images are used for observations (Atari environments)
     if INIT_HP["CHANNELS_LAST"]:
