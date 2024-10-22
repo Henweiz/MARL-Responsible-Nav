@@ -1,0 +1,3 @@
+# MLP Architecture
+arch: "mlp"
+hidden_size: [128, 128]

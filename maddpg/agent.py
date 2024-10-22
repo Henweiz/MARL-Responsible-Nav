@@ -227,7 +227,6 @@ class MADDPGAgent:
                     #print("loss=", loss)
 
             state = next_state
-            print(info)
 
             # Return when the episode is finished
             reset_noise_indices = []

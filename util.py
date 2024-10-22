@@ -1,6 +1,7 @@
 import numpy as np
 from custom.ma_customenv import CustomMAEnv
 from highway_env.envs.intersection_env import IntersectionEnv
+import yaml
 
 def addDim(arr):
     arr = arr[np.newaxis, :, :]
@@ -47,18 +48,13 @@ def get_net_config(arch):
     # Define the network configuration
     if arch == "mlp":
         print("Using MLP architecture")
-        NET_CONFIG = {
-            "arch": "mlp",  # Network architecture
-            "hidden_size": [128, 128],  # Actor hidden size
-        }
+        path = "configs\mlp.yaml"
     else:
         print("Using CNN architecture")
-        NET_CONFIG = {
-            "arch": "cnn",  # Network architecture
-            "hidden_size": [128, 128],  # Actor hidden size
-            "channel_size": [32, 64],
-            "kernel_size": [2, 2],
-            "stride_size": [2, 2]
-        }
+        path = "configs\cnn.yaml"
+     
+    # Load YAML net config file
+    with open(path, 'r') as file:
+        NET_CONFIG = yaml.safe_load(file)    
     
     return NET_CONFIG
