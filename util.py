@@ -18,8 +18,8 @@ def custom_state_dim(obs, arch, env_agents):
     
     return state_dim, one_hot
 
-def create_custom_ma_env(arch, fear=True, seed=42):
-    env = CustomMAEnv(fear=fear, seed=seed)
+def create_custom_ma_env(arch, fear=True, seed=42, render=False):
+    env = CustomMAEnv(render=render, fear=fear, seed=seed)
     obs, _ = env.reset()
 
     env.agents = [f'agent_{i}' for i in range(env.num_agents)]

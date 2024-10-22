@@ -48,7 +48,7 @@ if __name__ == "__main__":
     seed = 42
 
     # Define the simple spread environment as a parallel environment
-    env, state_dim, action_dim, one_hot = util.create_custom_ma_env(INIT_HP["ARCH"], INIT_HP["WITH_FEAR"], seed)
+    env, state_dim, action_dim, one_hot = util.create_custom_ma_env(INIT_HP["ARCH"], fear=False, seed=seed, render=True)
 
     # Logger
     # Configure the multi-agent algo input arguments
@@ -110,11 +110,11 @@ if __name__ == "__main__":
 
             # Return when the episode is finished
             reset_noise_indices = []
-            #term_array = np.array(list(termination.values())).transpose()
-            #truncation = np.array(list(truncation.values())).transpose()
+            term_array = np.array(list(termination.values())).transpose()
+            truncation = np.array(list(truncation.values())).transpose()
 
             for i in range(num_envs):
-                if truncation:
+                if all(truncation) or all(term_array):
                     reset_noise_indices.append(i)
                     
             # Render
@@ -123,7 +123,7 @@ if __name__ == "__main__":
             agents.agent.reset_action_noise(reset_noise_indices)
             crashes += info["agent_crashes"]
             destination_reached += info["apples_caught"]
-            if truncation or any(termination):
+            if all(truncation) or all(term_array):
                 break
 
     print(f"Total destination reached: {destination_reached} across {eval_episodes} episodes")
