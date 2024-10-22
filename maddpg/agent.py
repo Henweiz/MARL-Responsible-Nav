@@ -173,7 +173,6 @@ class MADDPGAgent:
             #     }
 
             reward_dict = self.make_dict(reward)
-
             scores += np.sum(np.array(list(reward_dict.values())).transpose(), axis=-1)
 
             total_steps += num_envs

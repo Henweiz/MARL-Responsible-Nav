@@ -49,21 +49,7 @@ if __name__ == '__main__':
     filename = "MADDPG_no_FeAR.pt"
 
     # Define the network configuration
-    if INIT_HP["ARCH"] == "mlp":
-        print("Using MLP architecture")
-        NET_CONFIG = {
-            "arch": "mlp",  # Network architecture
-            "hidden_size": [128, 128],  # Actor hidden size
-        }
-    else:
-        print("Using CNN architecture")
-        NET_CONFIG = {
-            "arch": "cnn",  # Network architecture
-            "hidden_size": [128, 128],  # Actor hidden size
-            "channel_size": [32, 64],
-            "kernel_size": [2, 2],
-            "stride_size": [2, 2]
-        }
+    NET_CONFIG = util.get_net_config(INIT_HP["ARCH"]) 
     
     # Logger
     if INIT_HP["LOGGING"]:

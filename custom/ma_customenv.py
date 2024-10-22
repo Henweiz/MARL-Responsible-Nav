@@ -150,7 +150,7 @@ class CustomMAEnv(ParallelEnv):
         self._cumulative_rewards = {agent: 0 for agent in self.agents}
         self.terminations = {agent: False for agent in self.agents}
         self.truncation = {agent: False for agent in self.agents}
-        infos = {"fear": 0.0}
+        info = {"fear": 0.0}
         # self.state = observations
         self.observations = {agent: self.observation for agent in self.agents}
         observation = self.World.WorldState.copy()
@@ -169,7 +169,7 @@ class CustomMAEnv(ParallelEnv):
         self.num_moves = 0
         self.prev_distance = {agent: None for agent in self.agents}
 
-        return self.observations, infos
+        return self.observations, info
     
     def step(self, actions):
         """
@@ -190,6 +190,7 @@ class CustomMAEnv(ParallelEnv):
         self.setup_step()
         self.num_moves += 1
         self.rewards = {agent: 0 for agent in self.agents}
+        apple_rewarded = 0
         
         for (idx, action) in enumerate(actions):
             # idx = int(agent[-1])
@@ -208,7 +209,7 @@ class CustomMAEnv(ParallelEnv):
 
         agent_crashes, restricted_moves, apples, apples_caught = self.World.UpdateGWorld(ActionID4Agents=self.Action4Agents, apples=self.apples, apple_eaters=[i for i in range(num_agents)])
         # print('step')
-        # print(apples_caught)
+        #print(apples_caught)
         for app in apples_caught:
             apple_key = app[1]
             agent_id = app[0]
@@ -221,6 +222,7 @@ class CustomMAEnv(ParallelEnv):
                     self.rewards[agent_key] += 20
                     self.rewards = {a: (v + 5) for a, v in self.rewards.items()}
                     self.terminations[agent_key] = True 
+                    apple_rewarded += 1
         if not self.apples:
             self.truncation = {a: True for a in self.agents}
             
@@ -261,12 +263,14 @@ class CustomMAEnv(ParallelEnv):
         # if self.rendering:
         #     self.render()    
 
-        infos = {"fear": FeAR_dict}
+        info = {"fear": FeAR_dict,
+                 "agent_crashes": sum(agent_crashes),
+                 "apples_caught": apple_rewarded}
 
 
 
 
-        return self.observations, self.rewards, self.terminations, self.truncation, infos
+        return self.observations, self.rewards, self.terminations, self.truncation, info
 
 
 

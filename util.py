@@ -42,3 +42,23 @@ def create_intersection_env(arch, config, fear=True, seed=42):
     action_dim = [env.action_space[agent].n for agent, _ in enumerate(env.agents)]
 
     return env, state_dim, action_dim, one_hot
+
+def get_net_config(arch):
+    # Define the network configuration
+    if arch == "mlp":
+        print("Using MLP architecture")
+        NET_CONFIG = {
+            "arch": "mlp",  # Network architecture
+            "hidden_size": [128, 128],  # Actor hidden size
+        }
+    else:
+        print("Using CNN architecture")
+        NET_CONFIG = {
+            "arch": "cnn",  # Network architecture
+            "hidden_size": [128, 128],  # Actor hidden size
+            "channel_size": [32, 64],
+            "kernel_size": [2, 2],
+            "stride_size": [2, 2]
+        }
+    
+    return NET_CONFIG
