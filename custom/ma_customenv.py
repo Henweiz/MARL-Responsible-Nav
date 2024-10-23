@@ -156,7 +156,7 @@ class CustomMAEnv(ParallelEnv):
         self.window.blit(canvas, canvas.get_rect())
         pygame.event.pump()
         pygame.display.update()
-        self.clock.tick(4)
+        self.clock.tick(5)
     
     def close(self):
         """
@@ -259,8 +259,9 @@ class CustomMAEnv(ParallelEnv):
                     self.apples.pop(apple_key)
                     # self.apples[apple_key] = fourth_loc
                     # self.apples_eaten += 1
+                    apple_rewarded += 1
                     for a in self.agents:            
-                        self.rewards[a] += 14
+                        self.rewards[a] += 15
                     if not self.apples: # or self.apples_eaten == 3:
                         for a in self.agents:            
                             self.rewards[a] += 5
@@ -268,6 +269,8 @@ class CustomMAEnv(ParallelEnv):
             
         distance = {}
         for i, agent in enumerate(self.agents):
+            # if restricted_moves[i]:
+            #     self.rewards[agent] -= 0.05
             if agent_crashes[i]:
                 self.rewards[agent] -= 6    
                 self.truncation = {a: True for a in self.agents}
@@ -310,9 +313,12 @@ class CustomMAEnv(ParallelEnv):
             self.observations[agent] = np.where(self.observations[agent] == agent_id+1, 1, self.observations[agent])
             observation = self.World.WorldState.copy()
 
+        action_mask_dict = {a: self.get_action_mask(int(a[-1])) for a in self.agents}
         info = {"fear": FeAR_dict,
                  "agent_crashes": sum(agent_crashes),
-                 "apples_caught": apple_rewarded}
+                 "apples_caught": apple_rewarded,
+                 "action_mask": action_mask_dict
+            }
 
 
 
@@ -405,7 +411,7 @@ class CustomMAEnv(ParallelEnv):
             # print(f'{agent_location =}, {agent_mdr =}')
 
         self.valid_locations = np.transpose(np.where(self.Region > 0))
-        self.apples = {"apple_0": (9,0), "apple_1": (5, 10)} #, "apple_2": (0,15)}
+        self.apples = {"apple_0": (9,0), "apple_1": (0, 15)} #, "apple_2": (0,15)}  Middle apple: (5, 10) 
 
 
         observation = self.World.WorldState
@@ -448,6 +454,48 @@ class CustomMAEnv(ParallelEnv):
             if manhattan_dist(self.World.AgentLocations[agent_i], self.World.AgentLocations[agentID]) <= max_dist:
                 agent_list.append((agentID, agent_action))
         return agent_list
+    
+
+    def get_action_mask(self, agent_index):
+        environment_map = self.Region
+        action_mask = np.ones(9, dtype=np.int8)  # Start with all actions allowed
+        x, y = self.World.AgentLocations[agent_index]  # Get the agent's current position
+
+        # Action1: Up 1
+        if x - 1 < 0 or environment_map[x - 1][y] == 0:
+            action_mask[1] = 0  # Block movement up by 1
+
+        # Action2: Down 1
+        if x + 1 >= len(environment_map) or environment_map[x + 1][y] == 0:
+            action_mask[2] = 0  # Block movement down by 1
+
+        # Action3: Left 1
+        if y - 1 < 0 or environment_map[x][y - 1] == 0:
+            action_mask[3] = 0  # Block movement left by 1
+
+        # Action4: Right 1
+        if y + 1 >= len(environment_map[0]) or environment_map[x][y + 1] == 0:
+            action_mask[4] = 0  # Block movement right by 1
+
+        # Action5: Up 2
+        if x - 2 < 0 or environment_map[x - 2][y] == 0:
+            action_mask[5] = 0  # Block movement up by 2
+
+        # Action6: Down 2
+        if x + 2 >= len(environment_map) or environment_map[x + 2][y] == 0:
+            action_mask[6] = 0  # Block movement down by 2
+
+        # Action7: Left 2
+        if y - 2 < 0 or environment_map[x][y - 2] == 0:
+            action_mask[7] = 0  # Block movement left by 2
+
+        # Action8: Right 2
+        if y + 2 >= len(environment_map[0]) or environment_map[x][y + 2] == 0:
+            action_mask[8] = 0  # Block movement right by 2
+
+        # Action0: Stay is always valid, so no need to mask it
+        return action_mask
+
         
 
 
