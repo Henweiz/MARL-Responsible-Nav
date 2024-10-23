@@ -32,31 +32,29 @@ ActionNames, ActionMoves = custom_agent.DefineActions()
 
 print('N_Agents : ',total_num_agents)
 COLOR_MAP = {
-    # -1: (0, 0, 0),   # Black for inactive cells
-    # 0: (255, 255, 255), # White for blank cells
-    # 1: (255, 215, 0),  # Yellow for the learned agent
-    # 2: (0, 0, 255),  # Blue for other agents
-    # 3: (0, 255, 0),  # Green for another agent
-    # 9: (255, 0, 0), # Gold for the apple
-    # 10: (255, 215 ,0),
-    # 11: (0, 0, 255),  
+    -2: (0, 0, 0),   # Black for inactive cells
+    0: (255, 255, 255), # White for blank cells
+    6: (255, 215, 0),  # Yellow for the learned agent
+    10: (0, 0, 255),  # Blue for other agents
+    # 6: (0, 255, 0),  # Green for another agent
+    9: (255, 0, 0), # Gold for the apple
+    15: (255, 215 ,0),
+    19: (0, 0, 255)
     # 12: (0, 255, 0),
 
 
 # FOR 2 INTELLIGENT AGENTS
-    -2: (0, 0, 0),   # Black for inactive cells
-    0: (255, 255, 255), # White for blank cells
-    2: (255, 215, 0),  # Yellow for the learned agent
-    4: (0, 0, 255),  # Blue for other agents
-    5: (0, 0, 255),
-    6: (0, 255, 0),  # Green for another agent
-    8: (0, 255, 0),
-    10: (255, 0, 0), # Gold for the apple
-    12: (255, 215, 0),
-    14: (0, 0, 255),  
-    15: (0, 255, 0),
-    16: (0, 255, 0),
-    18: (0, 255, 0)
+    # -2: (0, 0, 0),   # Black for inactive cells
+    # 0: (255, 255, 255), # White for blank cells
+    # 2: (255, 215, 0),  # Yellow for the learned agent
+    # 4: (0, 0, 255),  # Blue for other agents
+    # 6: (0, 255, 0),  # Green for another agent
+    # 8: (0, 255, 0),
+    # 10: (255, 0, 0), # Gold for the apple
+    # 12: (255, 215, 0),
+    # 14: (0, 0, 255),  
+    # 16: (0, 255, 0),
+    # 18: (0, 255, 0)
 
 # FOR 3 INTELLIGENT AGENTS
     # -3: (0, 0, 0),   # Black for inactive cells
@@ -142,6 +140,7 @@ class CustomMAEnv(ParallelEnv):
         canvas.fill((0, 0, 0))
         circles = [(255, 215, 0), (0, 0, 255), (0, 255, 0)]
         observation = self.observations[self.agents[0]]
+        # for i, row in enumerate(observation):
         for i, row in enumerate(total_obs):
             for j, cell_value in enumerate(row):
                 color = COLOR_MAP.get(int(cell_value), (255, 255, 255))
@@ -298,7 +297,7 @@ class CustomMAEnv(ParallelEnv):
             if agent_id in [int(id[-1]) for id in self.apples.keys()]:
                 for id, loc in self.apples.items():
                     if int(id[-1]) == agent_id:
-                        observation[loc] += 10
+                        observation[loc] += 9
                         break
             
             all_ids = [1, 2, 3, 4]
