@@ -7,7 +7,6 @@ from agilerl.components.multi_agent_replay_buffer import MultiAgentReplayBuffer
 from agilerl.hpo.mutation import Mutations
 from agilerl.hpo.tournament import TournamentSelection
 from agilerl.utils.utils import create_population
-from agilerl.wrappers.pettingzoo_wrappers import PettingZooVectorizationParallelWrapper
 from agilerl.algorithms.maddpg import MADDPG
 from agilerl.algorithms.matd3 import MATD3
 
@@ -106,13 +105,10 @@ class MADDPGAgent:
                     for agent_id, s in state_dict.items()
                 }
 
-            # Get action mask from the environment
-            agent_mask = info["agent_mask"] if "agent_mask" in info.keys() else None
             # Get next action from agent
             cont_actions, discrete_action = self.agent.get_action(
                 states=state_dict,
-                training=True,
-                agent_mask=agent_mask
+                training=True
             )
             if self.agent.discrete_actions:
                 action = discrete_action

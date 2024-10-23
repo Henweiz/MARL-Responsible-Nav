@@ -228,6 +228,7 @@ class CustomMAEnv(ParallelEnv):
         self.num_moves += 1
         self.rewards = {agent: 0 for agent in self.agents}
         apple_rewarded = 0
+        crash_count = 0
         
         for (idx, action) in enumerate(actions):
             # idx = int(agent[-1])
@@ -258,13 +259,12 @@ class CustomMAEnv(ParallelEnv):
                     # fourth_loc = next(iter(set(four_corners) - set(self.apples.values())), None)
                     self.apples.pop(apple_key)
                     # self.apples[apple_key] = fourth_loc
-                    # self.apples_eaten += 1
+                    # self.apples_eaten += 1            
+                    self.rewards[agent_key] += 15
                     apple_rewarded += 1
-                    for a in self.agents:            
-                        self.rewards[a] += 15
                     if not self.apples: # or self.apples_eaten == 3:
                         for a in self.agents:            
-                            self.rewards[a] += 5
+                            self.rewards[a] += 20
                         self.truncation = {a: True for a in self.agents}
             
         distance = {}
@@ -272,7 +272,8 @@ class CustomMAEnv(ParallelEnv):
             # if restricted_moves[i]:
             #     self.rewards[agent] -= 0.05
             if agent_crashes[i]:
-                self.rewards[agent] -= 6    
+                self.rewards[agent] -= 20    
+                crash_count += 1
                 self.truncation = {a: True for a in self.agents}
                 self.terminations[agent] = True
                 # self.agents = []
@@ -287,9 +288,9 @@ class CustomMAEnv(ParallelEnv):
             max_distance = 25
             if self.prev_distance[agent] is not None and distance[agent] is not None:
                 if self.prev_distance[agent] > distance[agent]:
-                    normalized_distance = max(0, max_distance - closest_apple) / (2 * max_distance)
-                    self.rewards[agent] += normalized_distance
-                    # self.rewards[agent] += 0.08
+                    #normalized_distance = max(0, max_distance - closest_apple) / (2 * max_distance)
+                    #self.rewards[agent] += normalized_distance
+                    self.rewards[agent] += 0.1
             
         self.prev_distance = distance
         observation = self.World.WorldState.copy()
@@ -315,7 +316,7 @@ class CustomMAEnv(ParallelEnv):
 
         action_mask_dict = {a: self.get_action_mask(int(a[-1])) for a in self.agents}
         info = {"fear": FeAR_dict,
-                 "agent_crashes": sum(agent_crashes),
+                 "agent_crashes": crash_count,
                  "apples_caught": apple_rewarded,
                  "action_mask": action_mask_dict
             }

@@ -14,7 +14,6 @@ from agilerl.components.multi_agent_replay_buffer import MultiAgentReplayBuffer
 from agilerl.hpo.mutation import Mutations
 from agilerl.hpo.tournament import TournamentSelection
 from agilerl.utils.utils import create_population
-from agilerl.wrappers.pettingzoo_wrappers import PettingZooVectorizationParallelWrapper
 
 from maddpg.agent import MADDPGAgent
 from log import Logger
@@ -33,7 +32,7 @@ if __name__ == '__main__':
         "SAVE_AGENT": False, # Save the agent
         "LOGGING": False,
         "RESUME": False,
-        "RESUME_ID": "3dze0erh"
+        "RESUME_ID": "4gkfj8gc"
     }
 
     # Load YAML config file
@@ -121,7 +120,7 @@ if __name__ == '__main__':
 
     env_steps = INIT_HP["TRAIN_STEPS"] 
 
-    total_steps = agents.agents_steps()
+    total_steps = 0
 
     # TRAINING LOOP
     print("Training...")
@@ -134,14 +133,14 @@ if __name__ == '__main__':
         if INIT_HP["LOGGING"]:
             logger.log(returns, agents.total_loss(), steps, total_steps, fear)
 
-        print(f"--- Episode: {i} ---")
-        print(f"Steps {steps}")
-        print(f"Return: {returns}")
-        print(f"Loss: {agents.total_loss()}")
-        print(f'Fear: {fear}')
+        #print(f"--- Episode: {i} ---")
+        #print(f"Steps {steps}")
+        #print(f"Return: {returns}")
+        #print(f"Loss: {agents.total_loss()}")
+        #print(f'Fear: {fear}')
     
 
-    
+    print(f"Number of global steps done: {total_steps}")
     if INIT_HP["SAVE_AGENT"]:
         agents.save_checkpoint(path, filename)
         print("Succesfully saved the agent")
