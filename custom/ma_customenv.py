@@ -48,11 +48,13 @@ COLOR_MAP = {
     0: (255, 255, 255), # White for blank cells
     2: (255, 215, 0),  # Yellow for the learned agent
     4: (0, 0, 255),  # Blue for other agents
+    5: (0, 0, 255),
     6: (0, 255, 0),  # Green for another agent
     8: (0, 255, 0),
     10: (255, 0, 0), # Gold for the apple
     12: (255, 215, 0),
     14: (0, 0, 255),  
+    15: (0, 255, 0),
     16: (0, 255, 0),
     18: (0, 255, 0)
 
@@ -259,7 +261,7 @@ class CustomMAEnv(ParallelEnv):
                     # self.apples[apple_key] = fourth_loc
                     # self.apples_eaten += 1
                     for a in self.agents:            
-                        self.rewards[a] += 10
+                        self.rewards[a] += 14
                     if not self.apples: # or self.apples_eaten == 3:
                         for a in self.agents:            
                             self.rewards[a] += 5
@@ -268,7 +270,7 @@ class CustomMAEnv(ParallelEnv):
         distance = {}
         for i, agent in enumerate(self.agents):
             if agent_crashes[i]:
-                self.rewards[agent] -= 4    
+                self.rewards[agent] -= 6    
                 self.truncation = {a: True for a in self.agents}
                 self.terminations[agent] = True
                 # self.agents = []
@@ -298,12 +300,16 @@ class CustomMAEnv(ParallelEnv):
                     if int(id[-1]) == agent_id:
                         observation[loc] += 10
                         break
+            
+            all_ids = [1, 2, 3, 4]
+            my_id = [agent_id+1]
+            other_ids = iter(set(all_ids) - set(my_id))
             self.observations[agent] = observation
+
+            for id in other_ids:
+                self.observations[agent] = np.where(self.observations[agent] == id, 5, self.observations[agent])
+            self.observations[agent] = np.where(self.observations[agent] == agent_id+1, 1, self.observations[agent])
             observation = self.World.WorldState.copy()
-
-
-        # if self.rendering:
-        #     self.render()    
 
         info = {"fear": FeAR_dict,
                  "agent_crashes": sum(agent_crashes),
