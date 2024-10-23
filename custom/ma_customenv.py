@@ -16,7 +16,8 @@ from custom.grid_world import GWorld
 
 
 N_DISCRETE_ACTIONS = 9
-N_AGENTS = 3
+N_INTELLIGENT_AGENTS = 2
+four_corners = [(0,0), (9,0), (0,15), (9,15)]
 
 inference = False
 
@@ -24,22 +25,47 @@ scenario_name = 'Level 3'
 MdR4Agents_Default = 0 #Stay
 Specific_MdR4Agents = [] #None
 Scenario =  grid_world.LoadJsonScenario(scenario_name="Level 3")
-num_agents = Scenario['N_Agents']
-assert num_agents == N_AGENTS
+total_num_agents = Scenario['N_Agents']
+# assert num_agents == N_AGENTS
 
 ActionNames, ActionMoves = custom_agent.DefineActions()
 
-print('N_Agents : ',num_agents)
+print('N_Agents : ',total_num_agents)
 COLOR_MAP = {
-    -1: (0, 0, 0),   # Black for inactive cells
+    # -1: (0, 0, 0),   # Black for inactive cells
+    # 0: (255, 255, 255), # White for blank cells
+    # 1: (255, 215, 0),  # Yellow for the learned agent
+    # 2: (0, 0, 255),  # Blue for other agents
+    # 3: (0, 255, 0),  # Green for another agent
+    # 9: (255, 0, 0), # Gold for the apple
+    # 10: (255, 215 ,0),
+    # 11: (0, 0, 255),  
+    # 12: (0, 255, 0),
+
+
+# FOR 2 INTELLIGENT AGENTS
+    -2: (0, 0, 0),   # Black for inactive cells
     0: (255, 255, 255), # White for blank cells
-    1: (255, 215, 0),  # Yellow for the learned agent
-    2: (0, 0, 255),  # Blue for other agents
-    3: (0, 255, 0),  # Green for another agent
-    9: (255, 0, 0), # Gold for the apple
-    11: (255, 0 ,0),
-    12: (0, 0, 255),  
-    13: (0, 0, 255)
+    2: (255, 215, 0),  # Yellow for the learned agent
+    4: (0, 0, 255),  # Blue for other agents
+    6: (0, 255, 0),  # Green for another agent
+    8: (0, 255, 0),
+    10: (255, 0, 0), # Gold for the apple
+    12: (255, 215, 0),
+    14: (0, 0, 255),  
+    16: (0, 255, 0),
+    18: (0, 255, 0)
+
+# FOR 3 INTELLIGENT AGENTS
+    # -3: (0, 0, 0),   # Black for inactive cells
+    # 0: (255, 255, 255), # White for blank cells
+    # 3: (255, 215, 0),  # Yellow for the learned agent
+    # 6: (0, 0, 255),  # Blue for other agents
+    # 9: (0, 255, 0),  # Green for another agent
+    # 10: (255, 0, 0), # Gold for the apple
+    # 13: (255, 215 ,0),
+    # 16: (0, 0, 255),  
+    # 19: (0, 255, 0)
 }
 
 class CustomMAEnv(ParallelEnv):
@@ -59,7 +85,7 @@ class CustomMAEnv(ParallelEnv):
         These attributes should not be changed after initialization.
         """
         # super().__init__()
-        self.possible_agents = ["agent_" + str(r) for r in range(num_agents)]
+        self.possible_agents = ["agent_" + str(r) for r in range(N_INTELLIGENT_AGENTS)]
         self.agents = self.possible_agents[:]
         self.action_space = Discrete(N_DISCRETE_ACTIONS)
         self._observation_spaces = {
@@ -95,17 +121,26 @@ class CustomMAEnv(ParallelEnv):
     
     def render(self):
         """
-        Renders the environment. In human mode, it can print to terminal, open
+        Renders the environment. In human mode, it can to terminal, open
         up a graphical window, or open up some other display that a human can see and understand.
         """
         if self.window is None:
             self.window = pygame.display.set_mode((self.window_width, self.window_height))
 
+
+
+        total_obs = np.zeros((10, 16))
+        # Add each array element-wise
+        for ob in self.observations.values():
+            total_obs += ob
+
+        # print(total_obs)
+
         canvas = pygame.Surface((self.window_width, self.window_height))
         canvas.fill((0, 0, 0))
         circles = [(255, 215, 0), (0, 0, 255), (0, 255, 0)]
         observation = self.observations[self.agents[0]]
-        for i, row in enumerate(observation):
+        for i, row in enumerate(total_obs):
             for j, cell_value in enumerate(row):
                 color = COLOR_MAP.get(int(cell_value), (255, 255, 255))
                 if color == (255, 0, 0):  
@@ -120,7 +155,7 @@ class CustomMAEnv(ParallelEnv):
         self.window.blit(canvas, canvas.get_rect())
         pygame.event.pump()
         pygame.display.update()
-        self.clock.tick(10)
+        self.clock.tick(4)
     
     def close(self):
         """
@@ -168,6 +203,7 @@ class CustomMAEnv(ParallelEnv):
         
         self.num_moves = 0
         self.prev_distance = {agent: None for agent in self.agents}
+        # self.apples_eaten = 0
 
         return self.observations, info
     
@@ -207,7 +243,7 @@ class CustomMAEnv(ParallelEnv):
                 FeAR_vals, _, _, _, _ =  Responsibility.FeAR_4_one_actor(self.World, agents, self.MdR4Agents, agent_id) 
                 FeAR_dict[agent] = np.sum(FeAR_vals)
 
-        agent_crashes, restricted_moves, apples, apples_caught = self.World.UpdateGWorld(ActionID4Agents=self.Action4Agents, apples=self.apples, apple_eaters=[i for i in range(num_agents)])
+        agent_crashes, restricted_moves, apples, apples_caught = self.World.UpdateGWorld(ActionID4Agents=self.Action4Agents, apples=self.apples, apple_eaters=[i for i in range(N_INTELLIGENT_AGENTS)])
         # print('step')
         #print(apples_caught)
         for app in apples_caught:
@@ -218,18 +254,21 @@ class CustomMAEnv(ParallelEnv):
             # print(apple_id)
             if apple_id == agent_id:
                 if self.apples.__contains__(apple_key):
-                    self.apples.pop(apple_key)            
-                    self.rewards[agent_key] += 20
-                    self.rewards = {a: (v + 5) for a, v in self.rewards.items()}
-                    self.terminations[agent_key] = True 
-                    apple_rewarded += 1
-        if not self.apples:
-            self.truncation = {a: True for a in self.agents}
+                    # fourth_loc = next(iter(set(four_corners) - set(self.apples.values())), None)
+                    self.apples.pop(apple_key)
+                    # self.apples[apple_key] = fourth_loc
+                    # self.apples_eaten += 1
+                    for a in self.agents:            
+                        self.rewards[a] += 10
+                    if not self.apples: # or self.apples_eaten == 3:
+                        for a in self.agents:            
+                            self.rewards[a] += 5
+                        self.truncation = {a: True for a in self.agents}
             
         distance = {}
         for i, agent in enumerate(self.agents):
             if agent_crashes[i]:
-                self.rewards[agent] -= 10
+                self.rewards[agent] -= 4    
                 self.truncation = {a: True for a in self.agents}
                 self.terminations[agent] = True
                 # self.agents = []
@@ -241,9 +280,12 @@ class CustomMAEnv(ParallelEnv):
                     closest_apple = manhattan_dist(self.World.AgentLocations[i], apple_loc)
 
             distance[agent] = closest_apple
+            max_distance = 25
             if self.prev_distance[agent] is not None and distance[agent] is not None:
                 if self.prev_distance[agent] > distance[agent]:
-                    self.rewards[agent] += 0.1 
+                    normalized_distance = max(0, max_distance - closest_apple) / (2 * max_distance)
+                    self.rewards[agent] += normalized_distance
+                    # self.rewards[agent] += 0.08
             
         self.prev_distance = distance
         observation = self.World.WorldState.copy()
@@ -254,7 +296,7 @@ class CustomMAEnv(ParallelEnv):
             if agent_id in [int(id[-1]) for id in self.apples.keys()]:
                 for id, loc in self.apples.items():
                     if int(id[-1]) == agent_id:
-                        observation[loc] += 9
+                        observation[loc] += 10
                         break
             self.observations[agent] = observation
             observation = self.World.WorldState.copy()
@@ -308,11 +350,11 @@ class CustomMAEnv(ParallelEnv):
         for location in Scenario['AgentLocations']:
             self.AgentLocations.append(tuple(location))
 
-        if len(self.AgentLocations) < num_agents:
+        if len(self.AgentLocations) < total_num_agents:
             [locX,locY] = np.where(self.Region==1)
 
         
-        LocIdxs = self.rng.choice(locX.shape[0], size=(num_agents-len(self.AgentLocations)), replace=False, shuffle=False)
+        LocIdxs = self.rng.choice(locX.shape[0], size=(total_num_agents-len(self.AgentLocations)), replace=False, shuffle=False)
         LocIdxs.sort()
 
         for Idx in LocIdxs:
@@ -327,7 +369,7 @@ class CustomMAEnv(ParallelEnv):
             PreviousAgentAdded = self.World.AddAgent(Ag_i,location, printStatus=False)
 
         PreviousAgentAdded = True
-        while len(self.World.AgentList) < num_agents:
+        while len(self.World.AgentList) < total_num_agents:
             # Adding new Agents if Previous Agent was Added to the World
             if PreviousAgentAdded: 
                 Ag_i =  CustomAgent()
@@ -358,11 +400,11 @@ class CustomMAEnv(ParallelEnv):
             # print(f'{agent_location =}, {agent_mdr =}')
 
         self.valid_locations = np.transpose(np.where(self.Region > 0))
-        self.apples = {"apple_0": (9,15), "apple_1": (9, 0), "apple_2": (0,15)}
+        self.apples = {"apple_0": (9,0), "apple_1": (5, 10)} #, "apple_2": (0,15)}
 
 
         observation = self.World.WorldState
-        self.apples_eaten = 0
+        # self.apples_eaten = 0
 
 
         self.observation = observation
