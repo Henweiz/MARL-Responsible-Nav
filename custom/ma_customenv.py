@@ -186,7 +186,12 @@ class CustomMAEnv(ParallelEnv):
         self._cumulative_rewards = {agent: 0 for agent in self.agents}
         self.terminations = {agent: False for agent in self.agents}
         self.truncation = {agent: False for agent in self.agents}
-        info = {"fear": 0.0}
+
+
+        action_mask_dict = {a: self.get_action_mask(int(a[-1])) for a in self.agents}
+        info = {"fear": 0.0,
+                "action_mask": action_mask_dict}
+
         # self.state = observations
         self.observations = {agent: self.observation for agent in self.agents}
         observation = self.World.WorldState.copy()
@@ -248,6 +253,7 @@ class CustomMAEnv(ParallelEnv):
         agent_crashes, restricted_moves, apples, apples_caught = self.World.UpdateGWorld(ActionID4Agents=self.Action4Agents, apples=self.apples, apple_eaters=[i for i in range(N_INTELLIGENT_AGENTS)])
         # print('step')
         #print(apples_caught)
+        #print(np.sum(restricted_moves[:1]))
         for app in apples_caught:
             apple_key = app[1]
             agent_id = app[0]
@@ -412,7 +418,7 @@ class CustomMAEnv(ParallelEnv):
             # print(f'{agent_location =}, {agent_mdr =}')
 
         self.valid_locations = np.transpose(np.where(self.Region > 0))
-        self.apples = {"apple_0": (9,0), "apple_1": (0, 15)} #, "apple_2": (0,15)}  Middle apple: (5, 10) 
+        self.apples = {"apple_0": (9,0), "apple_1": (5, 10)} #, "apple_2": (0,15)}  Middle apple: (5, 10) 
 
 
         observation = self.World.WorldState

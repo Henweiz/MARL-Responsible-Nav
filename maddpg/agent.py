@@ -108,7 +108,8 @@ class MADDPGAgent:
             # Get next action from agent
             cont_actions, discrete_action = self.agent.get_action(
                 states=state_dict,
-                training=True
+                training=True,
+                infos=info
             )
             if self.agent.discrete_actions:
                 action = discrete_action

@@ -15,7 +15,6 @@ import supersuit as ss
 
 from agilerl.components.multi_agent_replay_buffer import MultiAgentReplayBuffer
 from agilerl.algorithms.maddpg import MADDPG
-from agilerl.wrappers.pettingzoo_wrappers import PettingZooVectorizationParallelWrapper
 import yaml
 import util
 
@@ -38,7 +37,7 @@ if __name__ == "__main__":
         INIT_HP = yaml.safe_load(file)
 
     # Path & filename to save or load
-    path = "./models/custom/multi/no_fear/MADDPG/"
+    path = "./models/custom/multi/no_fear/MADDPG"
     filename = "MADDPG_no_FeAR.pt"
     
     NET_CONFIG = util.get_net_config(INIT_HP["ARCH"])
@@ -61,8 +60,8 @@ if __name__ == "__main__":
 
     agents = MADDPGAgent(state_dim, action_dim, one_hot, NET_CONFIG, INIT_HP, num_envs, device)
 
-    agents.load_checkpoint(path, filename)
-    print("Agent succesfully loaded!")
+    #agents.load_checkpoint(path, filename)
+    #print("Agent succesfully loaded!")
 
     crashes = 0
     destination_reached = 0
@@ -91,6 +90,7 @@ if __name__ == "__main__":
             cont_actions, discrete_action = agents.agent.get_action(
                 states=state_dict,
                 training=False,
+                infos=info
             )
             if agents.agent.discrete_actions:
                 action = discrete_action
