@@ -44,7 +44,7 @@ if __name__ == "__main__":
 
     episodes = 10
     # Path & filename to save or load
-    path = "./models/intersection/"
+    #path = "./models/intersection/"
     seed = 66
     #filename = "MADDPG_trained_4agent2000eps{}seed_wFeAR.pt".format(seed)
     filename = "MADDPG_trained_4agent2000eps_woFeAR_best.pt"
@@ -155,9 +155,10 @@ if __name__ == "__main__":
     )
 
     # Load the previous trained agent.
-    path = os.path.join(path, filename)
-    paths = []
+    #path = os.path.join(path, filename)
+    paths = ["/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent1100eps_wFeAR_3_test3.pt"]
     for path in paths:
+        print(f"{path=}")
         agent.load_checkpoint(path)
 
 
