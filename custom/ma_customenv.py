@@ -188,9 +188,10 @@ class CustomMAEnv(ParallelEnv):
         self.truncation = {agent: False for agent in self.agents}
 
 
-        action_mask_dict = {a: self.get_action_mask(int(a[-1])) for a in self.agents}
-        info = {"fear": 0.0,
-                "action_mask": action_mask_dict}
+
+        action_mask_dict = {a: self.get_action_mask(a) for a in self.agents}
+        info = {"fear": 0.0}
+        info.update(action_mask_dict)
 
         # self.state = observations
         self.observations = {agent: self.observation for agent in self.agents}
@@ -266,7 +267,7 @@ class CustomMAEnv(ParallelEnv):
                     self.apples.pop(apple_key)
                     # self.apples[apple_key] = fourth_loc
                     # self.apples_eaten += 1            
-                    self.rewards[agent_key] += 15
+                    self.rewards[agent_key] += 20
                     apple_rewarded += 1
                     if not self.apples: # or self.apples_eaten == 3:
                         for a in self.agents:            
@@ -278,7 +279,7 @@ class CustomMAEnv(ParallelEnv):
             # if restricted_moves[i]:
             #     self.rewards[agent] -= 0.05
             if agent_crashes[i]:
-                self.rewards[agent] -= 20    
+                self.rewards[agent] -= 10    
                 crash_count += 1
                 self.truncation = {a: True for a in self.agents}
                 self.terminations[agent] = True
@@ -320,12 +321,12 @@ class CustomMAEnv(ParallelEnv):
             self.observations[agent] = np.where(self.observations[agent] == agent_id+1, 1, self.observations[agent])
             observation = self.World.WorldState.copy()
 
-        action_mask_dict = {a: self.get_action_mask(int(a[-1])) for a in self.agents}
+        action_mask_dict = {a: self.get_action_mask(a) for a in self.agents}
         info = {"fear": FeAR_dict,
                  "agent_crashes": crash_count,
-                 "apples_caught": apple_rewarded,
-                 "action_mask": action_mask_dict
+                 "apples_caught": apple_rewarded
             }
+        info.update(action_mask_dict)
 
 
 
@@ -463,8 +464,9 @@ class CustomMAEnv(ParallelEnv):
         return agent_list
     
 
-    def get_action_mask(self, agent_index):
+    def get_action_mask(self, agent):
         environment_map = self.Region
+        agent_index = int(agent[-1])
         action_mask = np.ones(9, dtype=np.int8)  # Start with all actions allowed
         x, y = self.World.AgentLocations[agent_index]  # Get the agent's current position
 
@@ -501,7 +503,7 @@ class CustomMAEnv(ParallelEnv):
             action_mask[8] = 0  # Block movement right by 2
 
         # Action0: Stay is always valid, so no need to mask it
-        return action_mask
+        return {"action_mask": action_mask}
 
         
 
