@@ -28,6 +28,46 @@ def make_dict(tuple, n_agents):
         dict[f'agent_{i}'] = tuple[i]
     return dict
 
+def average_dict_entries(data):
+    grouped_entries = {}
+    
+    # Group dictionary entries based on the number between underscores
+    for key, values in data.items():
+        # Extract the number between underscores
+        parts = key.split('_')
+        if len(parts) > 1:
+            group_key = parts[1]  # Get the number part
+
+            if group_key not in grouped_entries:
+                grouped_entries[group_key] = []
+            
+            grouped_entries[group_key].append(values)
+
+    # Function to average a list of numbers or dictionaries
+    def average_values(list_of_dicts):
+        averaged_dict = {}
+        n = len(list_of_dicts)
+        
+        for key in list_of_dicts[0]:
+            # If value is a number, average it
+            if isinstance(list_of_dicts[0][key], (int, float)):
+                averaged_dict[key] = sum(d[key] for d in list_of_dicts) / n
+            # If value is a dictionary, recursively average the inner dictionaries
+            elif isinstance(list_of_dicts[0][key], dict):
+                averaged_dict[key] = {
+                    sub_key: sum(d[key][sub_key] for d in list_of_dicts) / n
+                    for sub_key in list_of_dicts[0][key]
+                }
+        
+        return averaged_dict
+
+    # Create a new dictionary with averaged values
+    averaged_result = {}
+    
+    for group_key, entries in grouped_entries.items():
+        averaged_result[f"FeAR_{group_key}_averaged"] = average_values(entries)
+    
+    return averaged_result
 
 def relu(x):
     """
@@ -39,12 +79,37 @@ def relu(x):
     """
     return np.maximum(0, x) 
 
+def sort_dict_by_key(data, sort_key, reverse=False):
+    # Sort dictionary by a specific key in the nested dictionaries, with an option for reverse order
+    sorted_data = dict(sorted(
+        data.items(),
+        key=lambda item: item[1].get(sort_key, 0),  # Sort by the specified key, default to 0 if key is missing
+        reverse=reverse
+    ))
+    return sorted_data
 
+
+
+def get_best_models(data):
+    best_models = []
+    sort_keys = ["avg_crashes","avg_arrivals","avg_distance","avg_min_distance"]
+    for key in sort_keys:
+        reverse = True
+        if key == ("avg_crashes" or "avg_distance"):
+            reverse = False
+            
+        sorted_dict = sort_dict_by_key(data,key,reverse)
+        print(sorted_dict.keys())
+        l = list(sorted_dict.keys())
+        print(f"metric: {l}")
+        best_models.append(l[0])
+        
+    return best_models
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    episodes = 10
+    episodes = 50
     # Path & filename to save or load
     #path = "./models/intersection/"
     seed = 66
@@ -159,7 +224,19 @@ if __name__ == "__main__":
 
     # Load the previous trained agent.
     #path = os.path.join(path, filename)
-    paths = ["/Users/ljh/Desktop/AI_Project/Code/MARL-Responsible-Nav/maddpg/models/intersection/Experiment_on_FW_TL2/wo_FeAR/MADDPG_4agent2000eps_woFeAR_2.pt"]
+    paths = ["/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent2000eps_wFeAR_1_test1.pt",
+             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent2000eps_wFeAR_1_test2.pt",
+             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent2000eps_wFeAR_1_test3.pt",
+             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent2000eps_wFeAR_1.5_test1.pt",
+             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent2000eps_wFeAR_1.5_test2.pt",
+             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent2000eps_wFeAR_1.5_test3.pt",
+             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent2000eps_wFeAR_2_test1.pt",
+             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent2000eps_wFeAR_2_test2.pt",
+             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent2000eps_wFeAR_2_test3.pt",
+             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent2000eps_wFeAR_3_test2.pt",
+             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent2000eps_wFeAR_3_test3.pt"]
+    
+    stat_dict = {}
     for path in paths:
         print(f"{path=}")
         agent.load_checkpoint(path)
@@ -175,7 +252,6 @@ if __name__ == "__main__":
         num_arrivals = []
         dist_to_dest = np.zeros((episodes,n_agents))
         average_min_distance = np.zeros((episodes,n_agents))
-        
         for videos in range(episodes):
             
             average_min_distance_per_episode = []
@@ -228,7 +304,8 @@ if __name__ == "__main__":
                 if all(termination_good) or any(termination_bad):
                     num_crashes.append(sum(termination_bad))
                     num_arrivals.append(sum(termination_good))
-                    distances = np.array([relu(25 - vehicle.lane.local_coordinates(vehicle.position)[0]) for vehicle in env.controlled_vehicles ])
+                    distances = np.array([relu(25 - vehicle.lane.local_coordinates(vehicle.position)[0]) if ("il" in vehicle.lane_index[0]
+            and "o" in vehicle.lane_index[1]) else 50.0 for vehicle in env.controlled_vehicles ])
                     dist_to_dest[videos] = distances
                     average_min_distance[videos] = np.average(np.array(average_min_distance_per_episode), axis=0)
                     done = True
@@ -246,13 +323,20 @@ if __name__ == "__main__":
         avg_min_distance_per_vec = np.average(average_min_distance, axis=0)
         avg_min_distance = np.average(avg_min_distance_per_vec)
         
-        stat_dict = {}
+        
         name = path.split("w")[1].split(".")[0]
         stat_dict[name] = {"avg_crashes":avg_crashes,"avg_arrivals": avg_arrivals,
                         "avg_distance_to_destination_per_vec": {f'agent{i}': x for i,x in enumerate(avg_distance_to_destination_per_vec)},
                         "avg_distance":avg_distance,"avg_min_distance_per_vec": {f'agent{i}': x for i,x in enumerate(avg_min_distance_per_vec)}, 
                         "avg_min_distance":avg_min_distance}
-        
+        #GPU
+        stat_dict["FeAR_3_test1"] = {"avg_crashes": 1.6, "avg_arrivals": 0.06666666666666667, "avg_distance_to_destination_per_vec": {"agent0": 13.244086362953484, "agent1": 15.0, "agent2": 14.148503766602499, "agent3": 15.0}, "avg_distance": 14.348147532388996, "avg_min_distance_per_vec": {"agent0": 8.927004654241795, "agent1": 8.411552736626161, "agent2": 7.084267512495067, "agent3": 7.4719047952882995}, "avg_min_distance": 7.97368242466283}
+    
     with open('eval_stats.json', 'w') as convert_file: 
         convert_file.write(json.dumps(stat_dict))
+        
+    averaged_stats = average_dict_entries(stat_dict)
+    
+    with open('averaged_stats.json', 'w') as convert_file: 
+        convert_file.write(json.dumps(averaged_stats))
 

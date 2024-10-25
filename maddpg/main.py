@@ -271,6 +271,7 @@ if __name__ == '__main__':
     if INIT_HP["SAVE_AGENT"]:
         agents.save_checkpoint(path, filename)
         print("Succesfully saved the agent")
+        print(f"--- Global steps {total_steps} ---")
     
     # Computing data for visualization 
     X_AXIS = np.arange(0, INIT_HP["MAX_EPISODES"], INIT_HP["MAX_EPISODES"] // 10)
