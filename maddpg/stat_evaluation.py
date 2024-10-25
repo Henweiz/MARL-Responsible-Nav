@@ -324,7 +324,7 @@ if __name__ == "__main__":
         avg_min_distance = np.average(avg_min_distance_per_vec)
         
         
-        name = path.split("w")[1].split(".")[0]
+        name = path.split("w")[1].split("pt")[0]
         stat_dict[name] = {"avg_crashes":avg_crashes,"avg_arrivals": avg_arrivals,
                         "avg_distance_to_destination_per_vec": {f'agent{i}': x for i,x in enumerate(avg_distance_to_destination_per_vec)},
                         "avg_distance":avg_distance,"avg_min_distance_per_vec": {f'agent{i}': x for i,x in enumerate(avg_min_distance_per_vec)}, 
