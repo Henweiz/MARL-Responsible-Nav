@@ -120,7 +120,7 @@ if __name__ == '__main__':
 
     env_steps = INIT_HP["TRAIN_STEPS"] 
 
-    total_steps = 0
+    total_steps = agents.agents_steps()
 
     # TRAINING LOOP
     print("Training...")
@@ -142,7 +142,7 @@ if __name__ == '__main__':
 
     print(f"Number of global steps done: {total_steps}")
     if INIT_HP["SAVE_AGENT"]:
-        agents.save_checkpoint(path, filename)
+        agents.save_checkpoint(path, filename, total_steps)
         print("Succesfully saved the agent")
 
     pbar.close()

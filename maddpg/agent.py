@@ -252,7 +252,7 @@ class MADDPGAgent:
         return total_steps, completed_episode_scores[-1], fear_score
 
     # Save the most promising agent.
-    def save_checkpoint(self, path, filename):
+    def save_checkpoint(self, path, filename, steps):
         os.makedirs(path, exist_ok=True)
         save_path = os.path.join(path, filename)
 
@@ -260,6 +260,9 @@ class MADDPGAgent:
         memory_path = os.path.join(path, 'memory.pkl')
         with open(memory_path, 'wb') as f:
             pickle.dump(self.memory, f)
+        steps_path = os.path.join(path, "steps.txt")
+        with open(steps_path, 'w') as file:
+            file.write(str(steps))
     
     # Load agents.
     def load_checkpoint(self, path, filename):
@@ -269,6 +272,10 @@ class MADDPGAgent:
             #agent.steps[-1] = 0
         with open(memory_path, 'rb') as f:
             self.memory = pickle.load(f)
+        steps_path = os.path.join(path, "steps.txt") 
+        with open(steps_path, 'r') as file:
+            self.agent.steps[-1] = int(file.read())    
+        
     
     # Check for reached the max steps number accross all agents.
     def reached_max_steps(self, max_steps):

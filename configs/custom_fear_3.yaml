@@ -23,4 +23,4 @@ BATCH_SIZE: 128
 
 # Fear
 WITH_FEAR: True
-FeAR_weight: -2.0
+FeAR_weight: -3.0
