@@ -224,17 +224,9 @@ if __name__ == "__main__":
 
     # Load the previous trained agent.
     #path = os.path.join(path, filename)
-    paths = ["/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent2000eps_wFeAR_1_test1.pt",
-             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent2000eps_wFeAR_1_test2.pt",
-             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent2000eps_wFeAR_1_test3.pt",
-             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent2000eps_wFeAR_1.5_test1.pt",
-             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent2000eps_wFeAR_1.5_test2.pt",
-             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent2000eps_wFeAR_1.5_test3.pt",
-             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent2000eps_wFeAR_2_test1.pt",
-             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent2000eps_wFeAR_2_test2.pt",
-             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent2000eps_wFeAR_2_test3.pt",
-             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent2000eps_wFeAR_3_test2.pt",
-             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent2000eps_wFeAR_3_test3.pt"]
+    paths = ["/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/trajectory_length/MADDPG_4agent2000eps_wFeAR_-1.5_TL2.pt",
+             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/trajectory_length/MADDPG_4agent2000eps_wFeAR_-1.5_TL3.pt",
+             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/trajectory_length/MADDPG_4agent2000eps_wFeAR_1.5_trl1.pt"]
     
     stat_dict = {}
     for path in paths:
@@ -301,7 +293,7 @@ if __name__ == "__main__":
                 
                 state = next_state
                 
-                if all(termination_good) or any(termination_bad):
+                if all(termination_good) or any(termination_bad) or truncation:
                     num_crashes.append(sum(termination_bad))
                     num_arrivals.append(sum(termination_good))
                     distances = np.array([relu(25 - vehicle.lane.local_coordinates(vehicle.position)[0]) if ("il" in vehicle.lane_index[0]
@@ -330,13 +322,14 @@ if __name__ == "__main__":
                         "avg_distance":avg_distance,"avg_min_distance_per_vec": {f'agent{i}': x for i,x in enumerate(avg_min_distance_per_vec)}, 
                         "avg_min_distance":avg_min_distance}
         #GPU
-        stat_dict["FeAR_3_test1"] = {"avg_crashes": 1.6, "avg_arrivals": 0.06666666666666667, "avg_distance_to_destination_per_vec": {"agent0": 13.244086362953484, "agent1": 15.0, "agent2": 14.148503766602499, "agent3": 15.0}, "avg_distance": 14.348147532388996, "avg_min_distance_per_vec": {"agent0": 8.927004654241795, "agent1": 8.411552736626161, "agent2": 7.084267512495067, "agent3": 7.4719047952882995}, "avg_min_distance": 7.97368242466283}
+        #stat_dict["FeAR_3_test1"] = {"avg_crashes": 1.6, "avg_arrivals": 0.06666666666666667, "avg_distance_to_destination_per_vec": {"agent0": 13.244086362953484, "agent1": 15.0, "agent2": 14.148503766602499, "agent3": 15.0}, "avg_distance": 14.348147532388996, "avg_min_distance_per_vec": {"agent0": 8.927004654241795, "agent1": 8.411552736626161, "agent2": 7.084267512495067, "agent3": 7.4719047952882995}, "avg_min_distance": 7.97368242466283}
     
-    with open('eval_stats.json', 'w') as convert_file: 
+    with open('eval_stats_trl.json', 'w') as convert_file: 
         convert_file.write(json.dumps(stat_dict))
-        
+      
+    '''   
     averaged_stats = average_dict_entries(stat_dict)
     
     with open('averaged_stats.json', 'w') as convert_file: 
         convert_file.write(json.dumps(averaged_stats))
-
+    '''
