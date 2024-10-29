@@ -109,7 +109,7 @@ def get_best_models(data):
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    episodes = 50
+    episodes = 100
     # Path & filename to save or load
     #path = "./models/intersection/"
     seed = 66
@@ -224,9 +224,8 @@ if __name__ == "__main__":
 
     # Load the previous trained agent.
     #path = os.path.join(path, filename)
-    paths = ["/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/trajectory_length/MADDPG_4agent2000eps_wFeAR_-1.5_TL2.pt",
-             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/trajectory_length/MADDPG_4agent2000eps_wFeAR_-1.5_TL3.pt",
-             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/trajectory_length/MADDPG_4agent2000eps_wFeAR_1.5_trl1.pt"]
+    paths = ["/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent_woutFeAR2.pt",
+             "/Users/cemlevi/Desktop/marl_nav/MARL-Responsible-Nav/models/intersection/MADDPG_4agent5000eps_wFeAR_FW-1.5_TL2_test2.pt"]
     
     stat_dict = {}
     for path in paths:
@@ -324,7 +323,7 @@ if __name__ == "__main__":
         #GPU
         #stat_dict["FeAR_3_test1"] = {"avg_crashes": 1.6, "avg_arrivals": 0.06666666666666667, "avg_distance_to_destination_per_vec": {"agent0": 13.244086362953484, "agent1": 15.0, "agent2": 14.148503766602499, "agent3": 15.0}, "avg_distance": 14.348147532388996, "avg_min_distance_per_vec": {"agent0": 8.927004654241795, "agent1": 8.411552736626161, "agent2": 7.084267512495067, "agent3": 7.4719047952882995}, "avg_min_distance": 7.97368242466283}
     
-    with open('eval_stats_trl.json', 'w') as convert_file: 
+    with open('eval_stats_fear2.json', 'w') as convert_file: 
         convert_file.write(json.dumps(stat_dict))
       
     '''   
