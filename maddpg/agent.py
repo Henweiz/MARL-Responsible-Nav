@@ -274,7 +274,11 @@ class MADDPGAgent:
             self.memory = pickle.load(f)
         steps_path = os.path.join(path, "steps.txt") 
         with open(steps_path, 'r') as file:
-            self.agent.steps[-1] = int(file.read())    
+            self.agent.steps[-1] = int(file.read())  
+
+    def load_wo_memory(self, path, filename):
+        load_path = os.path.join(path, filename)
+        self.agent.load_checkpoint(load_path)
         
     
     # Check for reached the max steps number accross all agents.

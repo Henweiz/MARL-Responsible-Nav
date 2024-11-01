@@ -28,7 +28,7 @@ def make_dict(tuple, n_agents):
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    eval_episodes = 15
+    eval_episodes = 100
     
     # Load YAML config file
     config_path = "configs\custom.yaml"
@@ -37,8 +37,8 @@ if __name__ == "__main__":
         INIT_HP = yaml.safe_load(file)
 
     # Path & filename to save or load
-    path = "./models/custom/multi/no_fear/MADDPG"
-    filename = "MADDPG_no_FeAR.pt"
+    path = "./models/custom/multi/fear_10"
+    filename = "MADDPG_10_FeAR.pt"
     
     NET_CONFIG = util.get_net_config(INIT_HP["ARCH"])
 
@@ -47,7 +47,7 @@ if __name__ == "__main__":
     seed = 42
 
     # Define the simple spread environment as a parallel environment
-    env, state_dim, action_dim, one_hot = util.create_custom_ma_env(INIT_HP["ARCH"], fear=False, seed=seed, render=True)
+    env, state_dim, action_dim, one_hot = util.create_custom_ma_env(INIT_HP["ARCH"], fear=False, seed=seed, render=False)
 
     # Logger
     # Configure the multi-agent algo input arguments
@@ -60,11 +60,12 @@ if __name__ == "__main__":
 
     agents = MADDPGAgent(state_dim, action_dim, one_hot, NET_CONFIG, INIT_HP, num_envs, device)
 
-    #agents.load_checkpoint(path, filename)
-    #print("Agent succesfully loaded!")
+    agents.load_wo_memory(path, filename)
+    print("Agent succesfully loaded!")
 
     crashes = 0
     destination_reached = 0
+    total_steps = 0
 
     for idx in range(eval_episodes):
         state, info = env.reset()
@@ -118,16 +119,18 @@ if __name__ == "__main__":
                     reset_noise_indices.append(i)
                     
             # Render
-            env.render()
+            #env.render()
 
             agents.agent.reset_action_noise(reset_noise_indices)
             crashes += info["agent_crashes"]
             destination_reached += info["apples_caught"]
+            total_steps += 1
             if all(truncation) or all(term_array):
                 break
 
     print(f"Total destination reached: {destination_reached} across {eval_episodes} episodes")
     print(f"Total crashes: {crashes} across {eval_episodes} episodes")    
+    print(f"Total steps: {total_steps} across {eval_episodes} episodes")   
     env.close()
     
 

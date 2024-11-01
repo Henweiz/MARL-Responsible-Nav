@@ -297,7 +297,7 @@ class CustomMAEnv(ParallelEnv):
                 if self.prev_distance[agent] > distance[agent]:
                     #normalized_distance = max(0, max_distance - closest_apple) / (2 * max_distance)
                     #self.rewards[agent] += normalized_distance
-                    self.rewards[agent] += 0.1
+                    self.rewards[agent] += 1
             
         self.prev_distance = distance
         observation = self.World.WorldState.copy()
