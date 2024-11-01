@@ -1,0 +1,6 @@
+# CNN Architecture
+arch: "cnn"
+hidden_size: [128, 128]
+channel_size: [32, 64]
+kernel_size: [2, 2]
+stride_size: [2, 2]

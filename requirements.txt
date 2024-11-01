@@ -4,5 +4,5 @@ torch
 Pillow
 tqdm
 gymnasium
-agilerl==1.0.11
+agilerl==1.0.15
 highway-env
